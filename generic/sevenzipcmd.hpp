@@ -1,25 +1,21 @@
 #ifndef SEVENZIPCMD_H
 #define SEVENZIPCMD_H
 
-#include <locale>
-#include <codecvt>
-#include <sevenzip.h>
-#include <tcl.h>
-
 #include "tclcmd.hpp"
+
+#include <sevenzip.h>
 
 class SevenzipCmd : public TclCmd {
 
 public:
 
-    SevenzipCmd (Tcl_Interp * interp, const char * name): TclCmd(interp, name), lib(), convert() {};
+    SevenzipCmd (Tcl_Interp * interp, const char * name): TclCmd(interp, name), lib() {};
 
     virtual ~SevenzipCmd () {};
 
 private:
 
     sevenzip::Lib lib;
-    std::wstring_convert<std::codecvt_utf8<wchar_t>> convert;
 
     int Initialize (Tcl_Obj * dll);
     int SupportedExts (Tcl_Obj * exts);

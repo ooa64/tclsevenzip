@@ -2,6 +2,8 @@
 #include "sevenziparchivecmd.hpp"
 #include "sevenzipstream.hpp"
 
+#include <cwchar>
+
 #if defined(SEVENZIPCMD_DEBUG)
 #   include <iostream>
 #   define DEBUGLOG(_x_) (std::cerr << "DEBUG: " << _x_ << "\n")
@@ -132,7 +134,7 @@ int SevenzipCmd::Command (int objc, Tcl_Obj *const objv[]) {
 
             int type = (usechannel || detecttype) ? -2 : -1;
             if (type < 0 && forcetype) {
-                type = lib.getFormatByExtension(convert.from_bytes(Tcl_GetString(forcetype)).c_str());
+                type = lib.getFormatByExtension(sevenzip::fromBytes(Tcl_GetString(forcetype)));
                 if (type < 0)
                     return LastError(E_NOTIMPL);
             }
@@ -166,13 +168,13 @@ int SevenzipCmd::Initialize (Tcl_Obj *dll) {
         return TCL_ERROR;
     }
     if (dll) {
-        if (lib.load(convert.from_bytes(Tcl_GetString(dll)).c_str())) {
+        if (lib.load(sevenzip::fromBytes(Tcl_GetString(dll)))) {
             return TCL_OK;
         }
     } else if (lib.load(SEVENZIPDLL)) {
         return TCL_OK;
     }
-    Tcl_SetObjResult(tclInterp, Tcl_NewStringObj(convert.to_bytes(lib.getLoadMessage()).c_str(), -1));
+    Tcl_SetObjResult(tclInterp, Tcl_NewStringObj(sevenzip::toBytes(lib.getLoadMessage()), -1));
     // Tcl_SetObjResult(tclInterp, Tcl_NewStringObj("error loading 7z library", -1));
     return TCL_ERROR;
 }
@@ -185,13 +187,13 @@ int SevenzipCmd::SupportedExts (Tcl_Obj *exts) {
             wchar_t* t = wcstok(lib.getFormatExtensions(i), L" ", &b);
             while (t) {
             Tcl_ListObjAppendElement(tclInterp, exts,
-                        Tcl_NewStringObj(convert.to_bytes(t).c_str(), -1));
+                        Tcl_NewStringObj(sevenzip::toBytes(t), -1));
                 t = wcstok(NULL, L" ", &b);
             }
         }
         return TCL_OK;
     }
-    Tcl_SetObjResult(tclInterp, Tcl_NewStringObj(convert.to_bytes(LastError()).c_str(), -1));
+    Tcl_SetObjResult(tclInterp, Tcl_NewStringObj(sevenzip::toBytes(sevenzip::getMessage(LastError())), -1));
     // Tcl_SetObjResult(tclInterp, Tcl_NewStringObj("error loading 7z library", -1));
     return TCL_ERROR;
 }
@@ -220,6 +222,6 @@ int SevenzipCmd::LastError(HRESULT hr) {
     if (hr == S_OK)
         hr = sevenzip::getResult(false);
     Tcl_SetObjResult(tclInterp, Tcl_NewStringObj(
-            convert.to_bytes(sevenzip::getMessage(hr)).c_str(), -1));
+            sevenzip::toBytes(sevenzip::getMessage(hr)), -1));
     return TCL_ERROR;
 }

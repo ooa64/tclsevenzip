@@ -8,7 +8,7 @@
 #endif
 
 SevenzipInStream::SevenzipInStream(Tcl_Interp *interp, Tcl_Obj *channel) : 
-        tclInterp(interp), tclChannel(NULL), usechannel(false), convert() {
+        tclInterp(interp), tclChannel(NULL), usechannel(false) {
     DEBUGLOG(this << " SevenzipInStream::SevenzipInStream, tclChannel " << tclChannel << " usechannel " << usechannel);
     if (channel) {
         int mode;
@@ -43,7 +43,7 @@ HRESULT SevenzipInStream::Open(const wchar_t *filename) {
     if (!filename)
         return E_FAIL;
 
-    Tcl_Obj *file = Tcl_NewStringObj(convert.to_bytes(filename).c_str(), -1);
+    Tcl_Obj *file = Tcl_NewStringObj(sevenzip::toBytes(filename), -1);
     Tcl_IncrRefCount(file);
     tclChannel = Tcl_FSOpenFileChannel(tclInterp, file, "rb", 0644);
     if (tclChannel == NULL) {
@@ -53,7 +53,6 @@ HRESULT SevenzipInStream::Open(const wchar_t *filename) {
         return sevenzip::getResult(false);
     }    
     Tcl_DecrRefCount(file);
-    path = filename;       
     return S_OK;
 }
 
@@ -109,7 +108,7 @@ UInt32 SevenzipInStream::GetTime(const wchar_t *filename) const {
 
 
 SevenzipOutStream::SevenzipOutStream(Tcl_Interp *interp, Tcl_Obj *channel):
-        tclInterp(interp), tclChannel(NULL), usechannel(false), convert() {
+        tclInterp(interp), tclChannel(NULL), usechannel(false) {
     DEBUGLOG(this << " SevenzipOutStream with channel " << (channel ? Tcl_GetString(channel) : "NULL"));
     if (channel) {
         int mode;
@@ -144,7 +143,7 @@ HRESULT SevenzipOutStream::Open(const wchar_t *filename) {
     if (!filename)
         return E_FAIL;
 
-    Tcl_Obj *file = Tcl_NewStringObj(convert.to_bytes(filename).c_str(), -1);
+    Tcl_Obj *file = Tcl_NewStringObj(sevenzip::toBytes(filename), -1);
     Tcl_IncrRefCount(file);
     tclChannel = Tcl_FSOpenFileChannel(tclInterp, file, "wb", 0644);
     if (tclChannel == NULL) {

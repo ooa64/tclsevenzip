@@ -1,6 +1,3 @@
-#include <tcl.h>
-
-// #include "tclsevenzipUuid.h"
 #include "sevenzipcmd.hpp"
 
 extern "C" {

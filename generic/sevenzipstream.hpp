@@ -1,9 +1,6 @@
 #ifndef SEVENZIPSTREAM_H
 #define SEVENZIPSTREAM_H
 
-#include <locale>
-#include <codecvt>
-#include <vector>
 #include <sevenzip.h>
 #include <tcl.h>
 
@@ -31,8 +28,6 @@ private:
     Tcl_Interp *tclInterp;
     Tcl_Channel tclChannel;
     bool usechannel;
-    std::wstring path;
-    std::wstring_convert<std::codecvt_utf8<wchar_t>> convert;
 };
 
 class SevenzipOutStream:  public sevenzip::Ostream {
@@ -59,7 +54,6 @@ private:
     Tcl_Interp *tclInterp;
     Tcl_Channel tclChannel;
     bool usechannel;
-    std::wstring_convert<std::codecvt_utf8<wchar_t>> convert;
 };
 
 #endif

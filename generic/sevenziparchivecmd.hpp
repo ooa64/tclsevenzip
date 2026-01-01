@@ -1,13 +1,9 @@
 #ifndef SEVENZIPARCHIVECMD_H
 #define SEVENZIPARCHIVECMD_H
 
-#include <locale>
-#include <codecvt>
-#include <sevenzip.h>
-#include <tcl.h>
+#include "sevenzipstream.hpp"
 
 #include "tclcmd.hpp"
-#include "sevenzipstream.hpp"
 
 class SevenzipArchiveCmd : public TclCmd {
 
@@ -26,7 +22,6 @@ private:
 
     SevenzipInStream* stream = NULL;
     sevenzip::Iarchive archive;
-    std::wstring_convert<std::codecvt_utf8<wchar_t>> convert;
 
     int LastError(HRESULT hr = S_OK);
 

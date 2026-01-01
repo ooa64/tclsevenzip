@@ -1,6 +1,6 @@
-#include <string.h>
 #include "sevenziparchivecmd.hpp"
-#include "sevenzipstream.hpp"
+
+#include <string.h>
 
 #if defined(SEVENZIPARCHIVECMD_DEBUG)
 #   include <iostream>
@@ -124,13 +124,12 @@ static const char *const SevenzipProperties[] = {
 
 static int Tcl_StringCaseEqual(const char *str1, const char *str2, int nocase);
 #ifdef _WIN32
-// static wchar_t *Path_WindowsPathToUnixPath(wchar_t *path);
-static std::string Path_WindowsPathToUnixPath(std::string path);
+static char *Path_WindowsPathToUnixPath(char *path);
 #endif
 
 SevenzipArchiveCmd::SevenzipArchiveCmd (Tcl_Interp *interp, const char *name, TclCmd *parent,
         sevenzip::Lib& lib) :
-        TclCmd(interp, name, parent), archive(lib), convert() {
+        TclCmd(interp, name, parent), archive(lib) {
     DEBUGLOG(this << " SevenzipArchiveCmd " << name);
 }
 
@@ -149,7 +148,7 @@ HRESULT SevenzipArchiveCmd::Open(SevenzipInStream* stream,
     if (stream)
         this->stream = stream;
     return archive.open(*stream,
-            filename ? convert.from_bytes(Tcl_GetString(filename)).c_str() : NULL,
+            filename ? sevenzip::fromBytes(Tcl_GetString(filename)) : NULL,
             formatIndex);
 }
 
@@ -164,8 +163,8 @@ HRESULT SevenzipArchiveCmd::Open(SevenzipInStream* stream,
     if (stream)
         this->stream = stream;
     return archive.open(*stream,
-            filename ? convert.from_bytes(Tcl_GetString(filename)).c_str() : NULL,
-            password ? convert.from_bytes(Tcl_GetString(password)).c_str() : NULL,
+            filename ? sevenzip::fromBytes(Tcl_GetString(filename)) : NULL,
+            password ? sevenzip::fromBytes(Tcl_GetString(password)) : NULL,
             formatIndex);
 }
 
@@ -354,7 +353,7 @@ int SevenzipArchiveCmd::Info(Tcl_Obj *info) {
             else 
                 Tcl_ListObjAppendElement(NULL, info, Tcl_ObjPrintf("prop%d", propId));                
             if (archive.getStringProperty(propId, stringValue) == S_OK)
-                Tcl_ListObjAppendElement(NULL, info, Tcl_NewStringObj(convert.to_bytes(stringValue).c_str(), -1));
+                Tcl_ListObjAppendElement(NULL, info, Tcl_NewStringObj(sevenzip::toBytes(stringValue), -1));
             else if (archive.getBoolProperty(propId, boolValue) == S_OK)
                 Tcl_ListObjAppendElement(NULL, info, Tcl_NewBooleanObj(boolValue));
             else if (archive.getIntProperty(propId, uint32Value) == S_OK)
@@ -378,7 +377,7 @@ int SevenzipArchiveCmd::Info(Tcl_Obj *info) {
     //     UInt64 uint64Value;
     //     if (archive.getStringProperty(propId, stringValue) == S_OK) {
     //         Tcl_ListObjAppendElement(NULL, info, Tcl_NewStringObj(SevenzipProperties[propId], -1));
-    //         Tcl_ListObjAppendElement(NULL, info, Tcl_NewStringObj(convert.to_bytes(stringValue).c_str(), -1));
+    //         Tcl_ListObjAppendElement(NULL, info, Tcl_NewStringObj(sevenzip::toBytes(stringValue), -1));
     //     } else if (archive.getBoolProperty(propId, boolValue) == S_OK) {
     //         Tcl_ListObjAppendElement(NULL, info, Tcl_NewStringObj(SevenzipProperties[propId], -1));
     //         Tcl_ListObjAppendElement(NULL, info, Tcl_NewBooleanObj(boolValue));
@@ -407,16 +406,16 @@ int SevenzipArchiveCmd::List(Tcl_Obj *list, Tcl_Obj *pattern, char type, int fla
             continue;
 
 #ifdef _WIN32
-        std::string path = Path_WindowsPathToUnixPath(convert.to_bytes(archive.getItemPath(i)).c_str());
+        char *path = Path_WindowsPathToUnixPath(sevenzip::toBytes(archive.getItemPath(i)));
 #else
-        std::string path = convert.to_bytes(archive.getItemPath(i)).c_str();
+        char *path = sevenzip::toBytes(archive.getItemPath(i));
 #endif
         if (pattern) {
             if (flags & LIST_MATCH_EXACT) {
-                if (!Tcl_StringCaseEqual(path.c_str(), Tcl_GetString(pattern), flags & TCL_MATCH_NOCASE))
+                if (!Tcl_StringCaseEqual(path, Tcl_GetString(pattern), flags & TCL_MATCH_NOCASE))
                     continue;
             } else { 
-                if (!Tcl_StringCaseMatch(path.c_str(), Tcl_GetString(pattern), flags & TCL_MATCH_NOCASE))
+                if (!Tcl_StringCaseMatch(path, Tcl_GetString(pattern), flags & TCL_MATCH_NOCASE))
                     continue;
             }
         }
@@ -438,11 +437,11 @@ int SevenzipArchiveCmd::List(Tcl_Obj *list, Tcl_Obj *pattern, char type, int fla
 #ifdef _WIN32
                     if (propId == kpidPath && archive.getStringItemProperty(i, propId, stringValue) == S_OK)
                         Tcl_ListObjAppendElement(NULL, propObj, 
-                                Tcl_NewStringObj(Path_WindowsPathToUnixPath(convert.to_bytes(stringValue)).c_str(), -1));
+                                Tcl_NewStringObj(Path_WindowsPathToUnixPath(sevenzip::toBytes(stringValue)), -1));
                     else                        
 #endif
                     if (archive.getStringItemProperty(i, propId, stringValue) == S_OK)
-                        Tcl_ListObjAppendElement(NULL, propObj, Tcl_NewStringObj(convert.to_bytes(stringValue).c_str(), -1));
+                        Tcl_ListObjAppendElement(NULL, propObj, Tcl_NewStringObj(sevenzip::toBytes(stringValue), -1));
                     else if (archive.getBoolItemProperty(i, propId, boolValue) == S_OK)
                         Tcl_ListObjAppendElement(NULL, propObj, Tcl_NewBooleanObj(boolValue));
                     else if (archive.getIntItemProperty(i, propId, uint32Value) == S_OK)
@@ -465,7 +464,7 @@ int SevenzipArchiveCmd::List(Tcl_Obj *list, Tcl_Obj *pattern, char type, int fla
             //     UInt64 uint64Value;
             //     if (archive.getStringItemProperty(i, propId, stringValue) == S_OK) {
             //         Tcl_ListObjAppendElement(NULL, propObj, Tcl_NewStringObj(SevenzipProperties[propId], -1));
-            //         Tcl_ListObjAppendElement(NULL, propObj, Tcl_NewStringObj(convert.to_bytes(stringValue).c_str(), -1));
+            //         Tcl_ListObjAppendElement(NULL, propObj, Tcl_NewStringObj(sevenzip::toBytes(stringValue), -1));
             //     } else if (archive.getBoolItemProperty(i, propId, boolValue) == S_OK) {
             //         Tcl_ListObjAppendElement(NULL, propObj, Tcl_NewStringObj(SevenzipProperties[propId], -1));
             //         Tcl_ListObjAppendElement(NULL, propObj, Tcl_NewBooleanObj(boolValue));
@@ -481,7 +480,7 @@ int SevenzipArchiveCmd::List(Tcl_Obj *list, Tcl_Obj *pattern, char type, int fla
             // }
             Tcl_ListObjAppendElement(NULL, list, propObj);
         } else {
-            Tcl_ListObjAppendElement(NULL, list, Tcl_NewStringObj(path.c_str(), -1));
+            Tcl_ListObjAppendElement(NULL, list, Tcl_NewStringObj(path, -1));
         }
     }
     return TCL_OK;
@@ -502,16 +501,16 @@ int SevenzipArchiveCmd::Extract(Tcl_Obj *source, Tcl_Obj *destination, Tcl_Obj *
             continue;            
 
 #ifdef _WIN32
-        std::string path = Path_WindowsPathToUnixPath(convert.to_bytes(archive.getItemPath(i)).c_str());
+        char* path = Path_WindowsPathToUnixPath(sevenzip::toBytes(archive.getItemPath(i)));
 #else
-        std::string path = convert.to_bytes(archive.getItemPath(i)).c_str();
+        char* path = sevenzip::toBytes(archive.getItemPath(i));
 #endif
-        if (strcmp(path.c_str(), Tcl_GetString(source)) == 0) {
+        if (strcmp(path, Tcl_GetString(source)) == 0) {
             // FIXME: use automatic memory management for stream?
             // TODO: improve error handling
             auto *stream = new SevenzipOutStream(tclInterp, usechannel ? destination : NULL);
             HRESULT hr = archive.extract(*stream, 
-                    password ? convert.from_bytes(Tcl_GetString(password)).c_str() : NULL, i);
+                    password ? sevenzip::fromBytes(Tcl_GetString(password)) : NULL, i);
         delete stream;
             if (hr != S_OK)
                 result = TCL_ERROR;
@@ -529,7 +528,7 @@ int SevenzipArchiveCmd::LastError(HRESULT hr) {
     if (hr == S_OK)
         hr = sevenzip::getResult(false);
     Tcl_SetObjResult(tclInterp, Tcl_NewStringObj(
-            convert.to_bytes(sevenzip::getMessage(hr)).c_str(), -1));
+            sevenzip::toBytes(sevenzip::getMessage(hr)), -1));
     return TCL_ERROR;
 }
 
@@ -542,20 +541,11 @@ static int Tcl_StringCaseEqual(const char *str1, const char *str2, int nocase) {
 }
 
 #ifdef _WIN32
-static std::string Path_WindowsPathToUnixPath(std::string path) {
-    for (int i = 0; i < path.size(); i++)
-    if (path[i] == '\\')
-        if (i < (path.size()-1) && path[i+1] == '\\')
-            i++;
-        else
-            path[i] = '/';
+static char *Path_WindowsPathToUnixPath(char *path) {
+    if (path)
+        for (auto p = path; *p; p++)
+            if (*p == '\\')
+                *p = '/';
     return path;
 }
-// static wchar_t *Path_WindowsPathToUnixPath(wchar_t *path) {
-//     if (path)
-//         for (auto p = path; *p; p++)
-//             if (*p == L'\\')
-//                 *p = L'/';
-//     return path;
-// }
 #endif

@@ -1,0 +1,17 @@
+# -*- tcl -*-
+# Tcl package index file, version 1.1
+#
+package ifneeded @PACKAGE_NAME@ @PACKAGE_VERSION@ [list ::apply {{dir} {
+    if {[package vsatisfies [package provide Tcl] 9.0-]} {
+        load [file join $dir @PKG_LIB_FILE9@] [string totitle @PACKAGE_NAME@]
+    } else {
+        load [file join $dir @PKG_LIB_FILE8@] [string totitle @PACKAGE_NAME@]
+    }
+    if {![sevenzip isinitialized]} {
+        if {[catch {sevenzip initialize [file join $dir 7z]}]} {
+            catch {sevenzip initialize [file join [file dirname [info nameofexe]] 7z]}
+        }
+    }
+}} $dir]
+
+package ifneeded vfs::sevenzip 0.2 [list source [file join $dir sevenzipvfs.tcl]]

@@ -1,0 +1,5 @@
+make directory on extract
+add missing props to info commands (isdir, packsize)
+improve error messaging
+replace wstring_convert by toBytes/fromBytes
+outarchive command

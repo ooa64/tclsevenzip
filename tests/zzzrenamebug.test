@@ -1,0 +1,53 @@
+if {[lsearch [namespace children] ::tcltest] < 0} {
+    package require tcltest 2
+    namespace import ::tcltest::*
+}
+
+
+package require sevenzip
+catch {
+    if {[info exist env(7ZDLL)]} {
+        sevenzip initialize $env(7ZDLL)
+    } else {
+        sevenzip initialize            
+    }
+}
+
+testConstraint have7zip [sevenzip isinitialized]
+
+test zzzrenamebug-1.0 {create and drop sevenzip in the child interp} -constraints {have7zip} -setup {
+    interp create i
+} -body {
+    interp eval i [list apply {{in} {
+        package require sevenzip
+        set cmd [sevenzip open $in]
+        rename sevenzip ""
+        $cmd close
+    }} [file join [testsDirectory] files test.7z]]
+} -cleanup {
+    interp delete i
+} -returnCodes 1 -result {invalid command name "sevenzip?*"} -match glob
+
+test zzzrenamebug-1.1 {drop sevenzip in main interpreter} -constraints {have7zip} -body {
+    set cmd [sevenzip open [file join [testsDirectory] files test.7z]]
+    rename sevenzip ""
+    $cmd close
+} -returnCodes 1 -result {invalid command name "sevenzip?*"} -match glob
+
+test zzzrenamebug-1.2 {create and drop sevenzip in the child interp} -constraints {have7zip} -setup {
+    catch {rename sevenzip ""}
+    interp create i
+} -body {
+    interp eval i [list apply {{in} {
+        package require sevenzip
+        set cmd [sevenzip open $in]
+        rename sevenzip ""
+        $cmd close
+    }} [file join [testsDirectory] files test.7z]]
+} -cleanup {
+    interp delete i
+} -returnCodes 1 -result {invalid command name "sevenzip?*"} -match glob
+
+
+cleanupTests
+return

@@ -1,0 +1,818 @@
+if {[lsearch [namespace children] ::tcltest] < 0} {
+    package require tcltest 2
+    namespace import ::tcltest::*
+}
+
+
+package require sevenzip 1
+catch {
+    if {[info exist env(7ZDLL)]} {
+        sevenzip initialize $env(7ZDLL)
+    } else {
+        sevenzip initialize            
+    }
+}
+
+if {[info proc readFile] eq ""} {
+    proc readFile {filename} {
+        set f [open $filename "r"]
+        try {
+            fconfigure $f -encoding utf-8
+            return [read $f]
+        } finally {
+            close $f
+        }
+    }
+}
+
+if {[info proc writeFile] eq ""} {
+    proc writeFile {filename data} {
+        set f [open $filename "w"]
+        try {
+            fconfigure $f -encoding utf-8
+            puts -nonewline $f $data
+        } finally {
+            close $f
+        }
+    }
+}
+
+testConstraint have7zip [sevenzip isinitialized]
+testConstraint haveMemchan [expr {![catch {package require tcl::chan::memchan}]}]
+testConstraint encodingOk [expr {"тест" eq "\u0442\u0435\u0441\u0442"}]
+
+test sevenzip-1.0 {syntax} -body {
+    sevenzip
+} -returnCodes 1 -result {wrong # args: should be "sevenzip subcommand"}
+
+test sevenzip-1.1 {syntax} -body {
+    sevenzip xxx
+} -returnCodes 1 -result {bad subcommand "xxx": must be initialize, isinitialized, extensions, or open}
+
+test sevenzip-1.2 {initialize syntax}  -body {
+    sevenzip initialize xxx xxx
+} -returnCodes 1 -result {wrong # args: should be "sevenzip initialize ?library?"}
+
+test sevenzip-1.2.1 {initialized syntax}  -body {
+    sevenzip isinitialized xxx
+} -returnCodes 1 -result {wrong # args: should be "sevenzip isinitialized"}
+
+test sevenzip-1.3 {extensions syntax}  -body {
+    sevenzip extensions xxx
+} -returnCodes 1 -result {wrong # args: should be "sevenzip extensions"}
+
+test sevenzip-1.4 {open syntax}  -body {
+    sevenzip open
+} -returnCodes 1 -result {wrong # args: should be "sevenzip open ?options? filename"}
+
+test sevenzip-1.5 {open syntax}  -body {
+    sevenzip open xxx xxx
+} -returnCodes 1 -result {bad option "xxx": must be -multivolume, -detecttype, -forcetype, -password, or -channel}
+
+test sevenzip-1.6 {open syntax}  -body {
+    sevenzip open -multivolume xxx xxx
+} -returnCodes 1 -result {bad option "xxx": must be -multivolume, -detecttype, -forcetype, -password, or -channel}
+
+test sevenzip-1.7 {open syntax}  -body {
+    sevenzip open -detecttype xxx xxx
+} -returnCodes 1 -result {bad option "xxx": must be -multivolume, -detecttype, -forcetype, -password, or -channel}
+
+test sevenzip-1.8 {open syntax}  -body {
+    sevenzip open -forcetype xxx
+} -returnCodes 1 -result {"-forcetype" option must be followed by type}
+
+test sevenzip-1.9 {open syntax}  -body {
+    sevenzip open -detecttype -forcetype xxx xxx
+} -returnCodes 1 -result {only one of options "-detecttype" or "-forcetype" must be specified}
+
+test sevenzip-1.10 {open syntax}  -body {
+    sevenzip open -multivolume -channel xxx
+} -returnCodes 1 -result {only one of options "-multivolume" or "-channel" must be specified}
+
+test sevenzip-1.11 {open syntax} -body {
+    sevenzip open -password xxx
+} -returnCodes 1 -result {"-password" option must be followed by password}
+
+test sevenzip-2.0 {initialized} -body {
+    sevenzip isinitialized
+} -result 1
+
+test sevenzip-2.1 {extensions} -constraints have7zip -body {
+    sevenzip extensions
+} -match regexp -result {\m7z\M}
+
+test sevenzip-2.2.1 {open notexistent} -constraints have7zip -body {
+    sevenzip open [file join [testsDirectory] files notexistent]
+} -returnCodes 1 -result {couldn't read file "*/files/notexistent": no such file or directory} -match glob
+
+test sevenzip-2.2.2 {open unknown format} -constraints have7zip -body {
+    sevenzip open -forcetype txt [file join [testsDirectory] files test.txt]
+} -returnCodes 1 -result {not supported}
+
+test sevenzip-2.2.3 {open invalid format} -constraints have7zip -body {
+    sevenzip open -forcetype 7z [file join [testsDirectory] files test.txt]
+} -returnCodes 1 -result {not supported}
+
+test sevenzip-2.2.4 {open encrypted header, no password} -constraints have7zip -body {
+    sevenzip open [file join [testsDirectory] files testPWD0.7z]
+} -returnCodes 1 -result {need password}
+
+test sevenzip-2.2.5 {open unknown channel} -constraints have7zip -body {
+    sevenzip open -c xxx
+} -returnCodes 1 -result {can not find channel named "xxx"}
+
+test sevenzip-2.2.6 {open nonreadable channel} -constraints have7zip -setup {
+    set chn [open [file join [testsDirectory] files test.7z] "a"]
+} -body {
+    sevenzip open -c $chn
+} -cleanup {
+    close $chn
+} -returnCodes 1 -result {channel "*" wasn't opened for reading} -match glob
+
+test sevenzip-2.2.7 {open nonseekable channel} -constraints have7zip -body {
+    sevenzip open -c stdin
+} -returnCodes 1 -result {couldn't seek on "stdin": invalid argument}
+
+test sevenzip-2.6 {open by force type} -constraints have7zip -body {
+    set cmd [sevenzip open -forcetype 7z [file join [testsDirectory] files test.7z]]
+} -cleanup {
+    rename $cmd ""
+} -result {^sevenzip\d+$} -match regexp
+
+test sevenzip-2.7 {open by file extension} -constraints have7zip -body {
+    set cmd [sevenzip open [file join [testsDirectory] files test.7z]]
+} -cleanup {
+    rename $cmd ""
+} -result {^sevenzip\d+$} -match regexp
+
+test sevenzip-2.8 {open by file signature} -constraints have7zip -body {
+    set cmd [sevenzip open -detecttype [file join [testsDirectory] files test.7z]]
+} -cleanup {
+    rename $cmd ""
+} -result {^sevenzip\d+$} -match regexp
+
+test sevenzip-2.9 {open encrypted header} -constraints have7zip -body {
+    set cmd [sevenzip open -p TEST [file join [testsDirectory] files testPWD0.7z]]
+} -cleanup {
+    rename $cmd ""
+} -result {^sevenzip\d+$} -match regexp
+
+test sevenzip-3.0 {command syntax} -constraints have7zip -setup {
+    set cmd [sevenzip open [file join [testsDirectory] files test.7z]]
+} -body {
+    $cmd
+} -cleanup {
+    rename $cmd ""
+} -returnCodes 1 -result {wrong # args: should be "sevenzip* subcommand"} -match glob
+
+test sevenzip-3.1 {command bad subcommand} -constraints have7zip -setup {
+    set cmd [sevenzip open [file join [testsDirectory] files test.7z]]
+} -body {
+    $cmd xxx
+} -cleanup {
+    rename $cmd ""
+} -returnCodes 1 -result {bad subcommand "xxx": must be info, count, list, extract, or close}
+
+test sevenzip-3.2 {command close} -constraints have7zip -setup {
+    set cmd [sevenzip open [file join [testsDirectory] files test.7z]]
+} -body {
+    list [$cmd close] [info commands $cmd]
+} -result {{} {}}
+
+test sevenzip-3.3 {command info} -constraints have7zip -setup {
+    set cmd [sevenzip open [file join [testsDirectory] files test.7z]]
+} -cleanup {
+    $cmd close
+} -body {
+    $cmd info
+} -result {solid 0 physize 131 headerssize 122}
+
+test sevenzip-3.4 {command count} -constraints have7zip -setup {
+    set cmd [sevenzip open [file join [testsDirectory] files test.7z]]
+} -body {
+    $cmd count
+} -cleanup {
+    $cmd close
+} -result {1}
+
+test sevenzip-4.0 {command list bad syntax} -constraints have7zip -setup {
+    set cmd [sevenzip open [file join [testsDirectory] files test.7z]]
+} -body {
+    $cmd list x x
+} -cleanup {
+    $cmd close
+} -returnCodes 1 -result {bad option "x": must be -info, -nocase, -exact, -type, or --}
+
+test sevenzip-4.1 {command list bad option} -constraints have7zip -setup {
+    set cmd [sevenzip open [file join [testsDirectory] files test.7z]]
+} -body {
+    $cmd list -xxx * --
+} -cleanup {
+    $cmd close
+} -returnCodes 1 -result {bad option "-xxx": must be -info, -nocase, -exact, -type, or --}
+
+test sevenzip-4.2 {command list bad type option} -constraints have7zip -setup {
+    set cmd [sevenzip open [file join [testsDirectory] files test.7z]]
+} -body {
+    $cmd list -type x
+} -cleanup {
+    $cmd close
+} -returnCodes 1 -result {"-type" option must be followed by "d" or "f"}
+
+test sevenzip-4.3 {command list} -constraints have7zip -setup {
+    set cmd [sevenzip open [file join [testsDirectory] files test.7z]]
+} -body {
+    $cmd list
+} -cleanup {
+    $cmd close
+} -result {test.txt}
+
+test sevenzip-4.3.0 {command list using memchan} -constraints {have7zip haveMemchan} -setup {
+    set fd [open [file join [testsDirectory] files test.7z] rb]
+    set in [tcl::chan::memchan]
+    fconfigure $in -translation binary
+    puts -nonewline $in [read $fd]
+    close $fd
+    seek $in 0
+    set cmd [sevenzip open -f 7z -c $in]
+} -body {
+    $cmd list
+} -cleanup {
+    $cmd close
+    close $in
+} -result {test.txt}
+
+test sevenzip-4.3.1 {command list from channel forcetype} -constraints have7zip -setup {
+    set in [open [file join [testsDirectory] files test.7z] r]
+    fconfigure $in -translation binary
+    set cmd [sevenzip open -f 7z -c $in]
+} -body {
+    $cmd list
+} -cleanup {
+    $cmd close
+    close $in
+} -result {test.txt}
+
+test sevenzip-4.3.2 {command list from channel detecttype} -constraints have7zip -setup {
+    set in [open [file join [testsDirectory] files test.7z] r]
+    fconfigure $in -translation binary
+    set cmd [sevenzip open -d -c $in]
+} -body {
+    $cmd list
+} -cleanup {
+    $cmd close
+    close $in
+} -result {test.txt}
+
+foreach {n c} {
+    0 {}
+    1 {-type f}
+    2 {-type f *}
+    3 {-type f --}
+    4 {-type f -- *}
+    5 {-nocase -type f}
+    6 {-nocase -type f *}
+    7 {-nocase -type f --}
+    8 {-nocase -type f -- *}
+    10 {test.txt}
+    11 {????.???}
+    12 {test.*}
+    13 {*.txt}
+    14 {*.*}
+    15 {*}
+    16 {-nocase TEST.*}
+    17 {-nocase TEST.TXT}
+    18 {-exact test.txt}
+    19 {-exact -nocase TEST.TXT}
+} {
+    test sevenzip-4.4.$n {command list all} -constraints have7zip -setup {
+        set cmd [sevenzip open [file join [testsDirectory] files test.7z]]
+    } -body {
+        $cmd list {*}$c
+    } -cleanup {
+        $cmd close
+    } -result {test.txt}
+    unset n c
+}
+
+foreach {n c} {
+    0 {test.xxx}
+    1 {????.xxx}
+    2 {TEST.TXT}
+    3 {-type d}
+    4 {-exact test.*}
+} {
+    test sevenzip-4.5.$n {command list none} -constraints have7zip -setup {
+        set cmd [sevenzip open [file join [testsDirectory] files test.7z]]
+    } -body {
+        $cmd list {*}$c
+    } -cleanup {
+        $cmd close
+    } -result {}
+    unset n c
+}
+
+test sevenzip-4.10 {detailed list} -constraints have7zip -setup {
+    set cmd [sevenzip open [file join [testsDirectory] files test.7z]]
+} -body {
+    $cmd list -info
+} -cleanup {
+    $cmd close
+} -result {{packsize 9 attrib 33 mtime 1759752741 encrypted 0 path test.txt isdir 0 size 4}}
+
+test sevenzip-4.11 {complex list} -constraints have7zip -setup {
+    set cmd [sevenzip open [file join [testsDirectory] files testDIRS.7z]]
+} -body {
+    join [$cmd list] \n
+} -cleanup {
+    $cmd close
+} -result {testDIRS
+testDIRS/test1
+testDIRS/test2
+testDIRS/test3
+testDIRS/test3/test31
+testDIRS/test3/test32
+testDIRS/test3/test33
+testDIRS/test3/test33/test331
+testDIRS/test2/test21.txt
+testDIRS/test2/test22.txt
+testDIRS/test2/test23.txt
+testDIRS/test3/test32/test321.txt
+testDIRS/test4.txt
+testDIRS/test5.txt
+testDIRS/test6.txt}
+
+test sevenzip-4.12 {complex list files} -constraints have7zip -setup {
+    set cmd [sevenzip open [file join [testsDirectory] files testDIRS.7z]]
+} -body {
+    join [$cmd list -type f] \n
+} -cleanup {
+    $cmd close
+} -result {testDIRS/test2/test21.txt
+testDIRS/test2/test22.txt
+testDIRS/test2/test23.txt
+testDIRS/test3/test32/test321.txt
+testDIRS/test4.txt
+testDIRS/test5.txt
+testDIRS/test6.txt}
+
+test sevenzip-4.13 {complex list dirs} -constraints have7zip -setup {
+    set cmd [sevenzip open [file join [testsDirectory] files testDIRS.7z]]
+} -body {
+    join [$cmd list -type d] \n
+} -cleanup {
+    $cmd close
+} -result {testDIRS
+testDIRS/test1
+testDIRS/test2
+testDIRS/test3
+testDIRS/test3/test31
+testDIRS/test3/test32
+testDIRS/test3/test33
+testDIRS/test3/test33/test331}
+
+test sevenzip-4.14 {complex list mask} -constraints have7zip -setup {
+    set cmd [sevenzip open [file join [testsDirectory] files testDIRS.7z]]
+} -body {
+    join [$cmd list -nocase -type d {*/*/*/*T3*}] \n
+} -cleanup {
+    $cmd close
+} -result {testDIRS/test3/test33/test331}
+
+test sevenzip-4.15 {complex detailed list} -constraints have7zip -setup {
+    set cmd [sevenzip open [file join [testsDirectory] files testDIRS.7z]]
+} -body {
+    join [$cmd list -info] \n
+} -cleanup {
+    $cmd close
+} -result {packsize 0 attrib 16 mtime 1759411690 encrypted 0 path testDIRS isdir 1 size 0
+packsize 0 attrib 16 mtime 1759410798 encrypted 0 path testDIRS/test1 isdir 1 size 0
+packsize 0 attrib 16 mtime 1759411705 encrypted 0 path testDIRS/test2 isdir 1 size 0
+packsize 0 attrib 16 mtime 1759410901 encrypted 0 path testDIRS/test3 isdir 1 size 0
+packsize 0 attrib 16 mtime 1759410880 encrypted 0 path testDIRS/test3/test31 isdir 1 size 0
+packsize 0 attrib 16 mtime 1759411673 encrypted 0 path testDIRS/test3/test32 isdir 1 size 0
+packsize 0 attrib 16 mtime 1759410923 encrypted 0 path testDIRS/test3/test33 isdir 1 size 0
+packsize 0 attrib 16 mtime 1759410923 encrypted 0 path testDIRS/test3/test33/test331 isdir 1 size 0
+packsize 26 attrib 32 mtime 1759410852 encrypted 0 path testDIRS/test2/test21.txt isdir 0 size 6
+attrib 32 mtime 1759410861 encrypted 0 path testDIRS/test2/test22.txt isdir 0 size 6
+attrib 32 mtime 1759411705 encrypted 0 path testDIRS/test2/test23.txt isdir 0 size 6
+attrib 32 mtime 1759411673 encrypted 0 path testDIRS/test3/test32/test321.txt isdir 0 size 7
+attrib 32 mtime 1759410820 encrypted 0 path testDIRS/test4.txt isdir 0 size 5
+attrib 32 mtime 1759411684 encrypted 0 path testDIRS/test5.txt isdir 0 size 5
+attrib 32 mtime 1759411690 encrypted 0 path testDIRS/test6.txt isdir 0 size 5}
+
+test sevenzip-4.16 {intl list} -constraints {have7zip encodingOk} -setup {
+    set cmd [sevenzip open [file join [testsDirectory] files тест.7z]]
+} -body {
+    join [$cmd list] \n
+} -cleanup {
+    $cmd close
+} -result {тест
+тест/тест1
+тест/тест1/тест1.txt}
+
+test sevenzip-4.17 {intl detailed list} -constraints {have7zip encodingOk} -setup {
+    set cmd [sevenzip open [file join [testsDirectory] files тест.7z]]
+} -body {
+    join [$cmd list -info] \n
+} -cleanup {
+    $cmd close
+} -result {packsize 0 attrib 16 mtime 1759411064 encrypted 0 path тест isdir 1 size 0
+packsize 0 attrib 16 mtime 1759818836 encrypted 0 path тест/тест1 isdir 1 size 0
+packsize 14 attrib 32 mtime 1759818836 encrypted 0 path тест/тест1/тест1.txt isdir 0 size 9}
+
+test sevenzip-4.18 {intl list match} -constraints {have7zip encodingOk} -setup {
+    set cmd [sevenzip open [file join [testsDirectory] files тест.7z]]
+} -body {
+    join [$cmd list -nocase *Т1.???] \n
+} -cleanup {
+    $cmd close
+} -result {тест/тест1/тест1.txt}
+
+test sevenzip-4.19 {encrypted archive list} -constraints have7zip -setup {
+    set cmd [sevenzip open -p TEST [file join [testsDirectory] files testPWD0.7z]]
+} -body {
+    $cmd list -info
+} -cleanup {
+    $cmd close
+} -result {{packsize 16 attrib 33 mtime 1759752741 encrypted 1 path test.txt isdir 0 size 4}}
+
+test sevenzip-4.20 {encrypted item list} -constraints have7zip -setup {
+    set cmd [sevenzip open [file join [testsDirectory] files testPWD1.7z]]
+} -body {
+    $cmd list -info
+} -cleanup {
+    $cmd close
+} -result {{packsize 16 attrib 33 mtime 1759752741 encrypted 1 path test.txt isdir 0 size 4}}
+
+test sevenzip-5.0.1 {extract syntax} -constraints {have7zip} -setup {
+    set cmd [sevenzip open [file join [testsDirectory] files test.7z]]
+} -body {
+    $cmd extract
+} -cleanup {
+    $cmd close
+} -returnCodes 1 -result {wrong # args: should be "sevenzip* extract ?options? item path"} -match glob
+
+test sevenzip-5.0.2 {extract syntax} -constraints {have7zip} -setup {
+    set cmd [sevenzip open [file join [testsDirectory] files test.7z]]
+} -body {
+    $cmd extract xxx
+} -cleanup {
+    $cmd close
+} -returnCodes 1 -result {wrong # args: should be "sevenzip* extract ?options? item path"} -match glob
+
+test sevenzip-5.0.3 {extract syntax} -constraints {have7zip} -setup {
+    set cmd [sevenzip open [file join [testsDirectory] files test.7z]]
+} -body {
+    $cmd extract -p xxx xxx
+} -cleanup {
+    $cmd close
+} -returnCodes 1 -result {"-password" option must be followed by password} -match glob
+
+test sevenzip-5.0.4 {extract syntax} -constraints {have7zip} -setup {
+    set cmd [sevenzip open [file join [testsDirectory] files test.7z]]
+} -body {
+    $cmd extract -c -p xxx ooo xxx xxx
+} -cleanup {
+    $cmd close
+} -returnCodes 1 -result {bad option "ooo": must be -password or -channel} -match glob
+
+test sevenzip-5.1 {extract invalid source} -constraints {have7zip} -setup {
+    set cmd [sevenzip open [file join [testsDirectory] files test.7z]]
+    set out [file join [temporaryDirectory] notexistent test.txt]
+} -body {
+    $cmd extract notexistent $out
+} -cleanup {
+    $cmd close
+} -returnCodes 1 -result {no such item "notexistent" in the archive}
+
+test sevenzip-5.2 {extract invalid destination} -constraints {have7zip} -setup {
+    set cmd [sevenzip open [file join [testsDirectory] files test.7z]]
+    set out [file join [temporaryDirectory] notexistent test.txt]
+} -body {
+    $cmd extract test.txt $out
+} -cleanup {
+    $cmd close
+} -returnCodes 1 -result {couldn't create file "*/notexistent/test.txt": no such file or directory} -match glob
+
+test sevenzip-5.3 {extract ok} -constraints {have7zip} -setup {
+    set cmd [sevenzip open [file join [testsDirectory] files test.7z]]
+    set out [file join [temporaryDirectory] test.txt]
+} -body {
+    $cmd extract test.txt $out
+    file exists $out
+} -cleanup {
+    $cmd close
+    file delete $out
+} -result 1
+
+test sevenzip-5.4 {extract data} -constraints {have7zip} -setup {
+    set cmd [sevenzip open [file join [testsDirectory] files test.7z]]
+    set out [file join [temporaryDirectory] test.txt]
+} -body {
+    $cmd extract test.txt $out
+    readFile $out
+} -cleanup {
+    $cmd close
+    file delete $out
+} -result {test}
+
+test sevenzip-5.4.1 {extract data to nonwritable channel} -constraints {have7zip} -setup {
+    set cmd [sevenzip open [file join [testsDirectory] files test.7z]]
+    set out [file join [temporaryDirectory] test.txt]
+    writeFile $out ""
+    set chn [open $out r]
+} -body {
+    $cmd extract -c test.txt $chn
+} -cleanup {
+    close $chn
+    $cmd close
+    file delete $out
+} -returnCodes 1 -result {channel "*" wasn't opened for writing} -match glob
+
+test sevenzip-5.4.2 {extract data to channel} -constraints {have7zip} -setup {
+    set cmd [sevenzip open [file join [testsDirectory] files test.7z]]
+    set out [file join [temporaryDirectory] test.txt]
+    set chn [open $out a]
+} -body {
+    $cmd extract -c test.txt $chn
+    flush $chn
+    readFile $out
+} -cleanup {
+    close $chn
+    $cmd close
+    file delete $out
+} -result {test}
+
+test sevenzip-5.4.3 {extract data to memchan} -constraints {have7zip haveMemchan} -setup {
+    set cmd [sevenzip open [file join [testsDirectory] files test.7z]]
+    set chn [tcl::chan::memchan]
+} -body {
+    $cmd extract -c test.txt $chn
+    seek $chn 0
+    read $chn
+} -cleanup {
+    close $chn
+    $cmd close
+} -result {test}
+
+test sevenzip-5.5 {extract data, destination exists} -constraints {have7zip} -setup {
+    set cmd [sevenzip open [file join [testsDirectory] files test.7z]]
+    set out [file join [temporaryDirectory] test.txt]
+    writeFile $out "TEST"
+} -body {
+    $cmd extract test.txt $out
+    readFile $out
+} -cleanup {
+    $cmd close
+    file delete $out
+} -result {test}
+
+test sevenzip-5.6 {extract data with path} -constraints {have7zip} -setup {
+    set cmd [sevenzip open [file join [testsDirectory] files testDIRS.7z]]
+    set out [file join [temporaryDirectory] test.txt]
+    writeFile $out "TEST"
+} -body {
+    $cmd extract testDIRS/test3/test32/test321.txt $out
+    readFile $out
+} -cleanup {
+    $cmd close
+    file delete $out
+} -result {test321}
+
+test sevenzip-5.7 {extract intl} -constraints {have7zip encodingOk} -setup {
+    set cmd [sevenzip open [file join [testsDirectory] files тест.7z]]
+    set out [file join [temporaryDirectory] тест.txt]
+    writeFile $out "TEST"
+} -body {
+    $cmd extract тест/тест1/тест1.txt $out
+    readFile $out
+} -cleanup {
+    $cmd close
+    file delete $out
+} -result {тест1}
+
+test sevenzip-5.8 {extract encrypted data error} -constraints {have7zip} -setup {
+    set cmd [sevenzip open [file join [testsDirectory] files testPWD1.7z]]
+    set out [file join [temporaryDirectory] test.txt]
+    writeFile $out "TEST"
+} -body {
+    $cmd extract test.txt $out
+    readFile $out
+} -cleanup {
+    $cmd close
+    file delete $out
+} -result {}
+
+test sevenzip-5.9 {extract encrypted data with archive password} -constraints {have7zip} -setup {
+    set cmd [sevenzip open -p TEST [file join [testsDirectory] files testPWD0.7z]]
+    set out [file join [temporaryDirectory] test.txt]
+    writeFile $out "TEST"
+} -body {
+    $cmd extract test.txt $out
+    readFile $out
+} -cleanup {
+    $cmd close
+    file delete $out
+} -result {test}
+
+test sevenzip-5.10 {extract data with archive password} -constraints {have7zip} -setup {
+    set cmd [sevenzip open -p TEST [file join [testsDirectory] files testPWD1.7z]]
+    set out [file join [temporaryDirectory] test.txt]
+    writeFile $out "TEST"
+} -body {
+    $cmd extract test.txt $out
+    readFile $out
+} -cleanup {
+    $cmd close
+    file delete $out
+} -result {test}
+
+test sevenzip-5.11 {extract data with item password} -constraints {have7zip} -setup {
+    set cmd [sevenzip open [file join [testsDirectory] files testPWD1.7z]]
+    set out [file join [temporaryDirectory] test.txt]
+    writeFile $out "TEST"
+} -body {
+    $cmd extract -p TEST test.txt $out
+    readFile $out
+} -cleanup {
+    $cmd close
+    file delete $out
+} -result {test}
+
+test sevenzip-6.0 {open singlevolume with -m} -constraints {have7zip} -body {
+    [sevenzip open -m [file join [testsDirectory] files test.7z]] close
+} -result {}
+
+test sevenzip-6.1 {open multivolume w/o -m} -constraints {have7zip} -body {
+    sevenzip open [file join [testsDirectory] files testMVOL.7z.001]
+} -returnCodes 1 -result {not supported}
+
+test sevenzip-6.2 {open multivolume} -constraints {have7zip} -body {
+    set cmd [sevenzip open -m [file join [testsDirectory] files testMVOL.7z.001]]
+    $cmd close
+} -result {}
+
+test sevenzip-6.3 {list multivolume} -constraints {have7zip} -setup {
+    set cmd [sevenzip open -m [file join [testsDirectory] files testMVOL.7z.001]]
+} -body {
+    $cmd list
+} -cleanup {
+    $cmd close
+} -result {test test/test.txt}
+
+test sevenzip-6.4 {extract multivolume} -constraints {have7zip} -setup {
+    set cmd [sevenzip open -f 001 -m [file join [testsDirectory] files testMVOL.7z.001]]
+    set out [file join [temporaryDirectory] test.txt]
+    catch {file delete $out}
+    writeFile $out "TEST"
+} -body {
+    $cmd extract test/test.txt $out
+    string length [readFile $out]
+} -cleanup {
+    $cmd close
+    file delete $out
+} -result {1024}
+
+foreach {n x} {0 .7z 1 .zip 2 .rar 3 .tar 4 .arj} {
+    test sevenzip-7.0.$n "look into $x" -constraints have7zip -setup {
+        set cmd [sevenzip open [file join [testsDirectory] files test$x]]
+    } -body {
+        $cmd list
+    } -cleanup {
+        $cmd close
+    } -result {test.txt}
+    unset n x
+}
+
+foreach {n x} {0 .7z 1 .zip 2 .rar 3 .tar 4 .arj} {
+    test sevenzip-7.1.$n "look into $x (autodetect)" -constraints have7zip -setup {
+        set cmd [sevenzip open -d [file join [testsDirectory] files test$x]]
+    } -body {
+        $cmd list
+    } -cleanup {
+        $cmd close
+    } -result {test.txt}
+    unset n x
+}
+
+foreach {n x} {0 .7z 1 .zip 2 .rar 3 .tar 4 .arj} {
+    test sevenzip-7.2.$n "extract data from $x" -constraints {have7zip} -setup {
+        set cmd [sevenzip open [file join [testsDirectory] files test$x]]
+        set out [file join [temporaryDirectory] test.txt]
+    } -body {
+        $cmd extract test.txt $out
+        readFile $out
+    } -cleanup {
+        $cmd close
+        file delete $out
+    } -result {test}
+    unset n x
+}
+
+foreach {n x} {0 .7z 1 .zip 2 .rar 3 .tar} {
+    test sevenzip-7.3.$n "look into $x (subdirs)" -constraints have7zip -setup {
+        set cmd [sevenzip open [file join [testsDirectory] files testDIRS$x]]
+    } -body {
+        join [lsort [$cmd list]] \n
+    } -cleanup {
+        $cmd close
+    } -result {testDIRS
+testDIRS/test1
+testDIRS/test2
+testDIRS/test2/test21.txt
+testDIRS/test2/test22.txt
+testDIRS/test2/test23.txt
+testDIRS/test3
+testDIRS/test3/test31
+testDIRS/test3/test32
+testDIRS/test3/test32/test321.txt
+testDIRS/test3/test33
+testDIRS/test3/test33/test331
+testDIRS/test4.txt
+testDIRS/test5.txt
+testDIRS/test6.txt}
+    unset n x
+}
+
+test sevenzip-7.3.4 "look into arj (subdirs, no empty ones)" -constraints have7zip -setup {
+    set cmd [sevenzip open [file join [testsDirectory] files testDIRS.arj]]
+} -body {
+    join [lsort [$cmd list]] \n
+} -cleanup {
+    $cmd close
+} -result {testDIRS/test2/test21.txt
+testDIRS/test2/test22.txt
+testDIRS/test2/test23.txt
+testDIRS/test3/test32/test321.txt
+testDIRS/test4.txt
+testDIRS/test5.txt
+testDIRS/test6.txt}
+
+test sevenzip-7.3.5.0 "look into tgz" -constraints have7zip -setup {
+    set cmd [sevenzip open [file join [testsDirectory] files testDIRS.tgz]]
+} -body {
+    join [lsort [$cmd list]] \n
+} -cleanup {
+    $cmd close
+} -result {[Content]}
+
+test sevenzip-7.3.5.1 "look into tgz (and into tar inside)" -constraints {have7zip haveMemchan} -setup {
+    set in [tcl::chan::memchan]
+    fconfigure $in -translation binary
+    set cmd1 [sevenzip open [file join [testsDirectory] files testDIRS.tgz]]
+    $cmd1 extract -c {[Content]} $in
+    seek $in 0
+} -body {
+    set cmd [sevenzip open -f tar -c $in]
+    join [lsort [$cmd list]] \n
+} -cleanup {
+    $cmd close
+    $cmd1 close
+    close $in
+} -result {testDIRS
+testDIRS/test1
+testDIRS/test2
+testDIRS/test2/test21.txt
+testDIRS/test2/test22.txt
+testDIRS/test2/test23.txt
+testDIRS/test3
+testDIRS/test3/test31
+testDIRS/test3/test32
+testDIRS/test3/test32/test321.txt
+testDIRS/test3/test33
+testDIRS/test3/test33/test331
+testDIRS/test4.txt
+testDIRS/test5.txt
+testDIRS/test6.txt}
+
+test sevenzip-9.0 {init in the child interp} -constraints {have7zip} -setup {
+    interp create i
+} -body {
+    interp eval i {
+        package require sevenzip
+        expr {[llength [sevenzip extensions]] > 0}
+    }
+} -cleanup {
+    interp delete i
+} -result {1}
+
+test sevenzip-9.1 {read in the child interp} -constraints {have7zip} -setup {
+    interp create i
+    set out [file join [temporaryDirectory] test.txt]
+} -body {
+    interp eval i [list apply {{in out} {
+        package require sevenzip
+        set cmd [sevenzip open $in]
+        $cmd extract test.txt $out
+        $cmd close
+    }} [file join [testsDirectory] files test.7z] $out]
+    readFile $out
+} -cleanup {
+    file delete $out
+    interp delete i
+} -result {test}
+
+
+cleanupTests
+return

@@ -29,7 +29,7 @@ TclCmd::TclCmd(Tcl_Interp * interp, const char * name, TclCmd * parent) {
 };
 
 TclCmd::~TclCmd() {
-  DEBUGLOG("TclCmd::Destruct *" << this);
+  DEBUGLOG(this << " TclCmd::Destruct");
   while (pChildren) delete pChildren;
   SetParent(NULL);
   Rename(NULL, NULL);
@@ -37,14 +37,14 @@ TclCmd::~TclCmd() {
 
 void TclCmd::Rename(Tcl_Interp * interp, const char * name) {
   if (interp && name) {
-    DEBUGLOG("TclCmd::Rename *" << this << " '" << \
+    DEBUGLOG(this << " TclCmd::Rename '" << \
 	     Tcl_GetCommandName(tclInterp, tclToken) << \
 	     "' to '" << name << "'");
     tclInterp = interp;
     tclToken = Tcl_CreateObjCommand(interp, name, 
 				    &TclCmd::Dispatch, this, TclCmd::Destroy);
   } else if (IsNamed()) {
-    DEBUGLOG("TclCmd::Rename *" << this << " '" << \
+    DEBUGLOG(this << " TclCmd::Rename '" << \
 	     Tcl_GetCommandName(tclInterp, tclToken) << "' to ''");
     Tcl_Interp * oldInterp = tclInterp; 
     Tcl_Command  oldToken = tclToken;
@@ -55,7 +55,7 @@ void TclCmd::Rename(Tcl_Interp * interp, const char * name) {
 }
 
 void TclCmd::SetParent(TclCmd * parent) {
-  DEBUGLOG("TclCmd::SetParent *" << this << " " << parent);
+  DEBUGLOG(this << " TclCmd::SetParent " << parent);
   if (pParent)
     pParent->RemoveChild(this);
   if (parent)
@@ -64,7 +64,7 @@ void TclCmd::SetParent(TclCmd * parent) {
 };
 
 void TclCmd::AddChild(TclCmd * child) {
-  DEBUGLOG("TclCmd::AddChild *" << this << " " << child);
+  DEBUGLOG(this << " TclCmd::AddChild " << child);
   if (pChildren)
     pChildren->pPrev = child;
   child->pNext = pChildren;
@@ -73,7 +73,7 @@ void TclCmd::AddChild(TclCmd * child) {
 }
 
 void TclCmd::RemoveChild(TclCmd * child) {
-  DEBUGLOG("TclCmd::RemoveChild *" << this << " " << child);
+  DEBUGLOG(this << " TclCmd::RemoveChild " << child);
   if (child->pPrev)
     child->pPrev->pNext = child->pNext;
   if (child->pNext)
@@ -88,10 +88,10 @@ int TclCmd::Dispatch (ClientData clientData, Tcl_Interp * interp,
 
 #ifdef TCLCMD_DEBUG
   if (interp != o->tclInterp) {
-    DEBUGLOG("TclCmd::Dispatch *" << o << " mismatched '" << \
+    DEBUGLOG("static TclCmd::Dispatch *" << o << " mismatched '" << \
 	     Tcl_GetString(objv[0]) << " " << (objc > 1 ? Tcl_GetString(objv[1]) : "") << "'");
   } else {
-    DEBUGLOG("TclCmd::Dispatch *" << o << " '" << \
+    DEBUGLOG("static TclCmd::Dispatch *" << o << " '" << \
 	     Tcl_GetString(objv[0]) << " " << (objc > 1 ? Tcl_GetString(objv[1]) : "") << "'");
   }
 #endif
@@ -101,7 +101,7 @@ int TclCmd::Dispatch (ClientData clientData, Tcl_Interp * interp,
 void TclCmd::Destroy(ClientData clientData) {
   TclCmd *o = (TclCmd *) clientData;
 
-  DEBUGLOG("TclCmd::Destroy *" << o);
+  DEBUGLOG("static TclCmd::Destroy *" << o);
   if (o->IsNamed()) {
     o->Cleanup();
     o->Unname();

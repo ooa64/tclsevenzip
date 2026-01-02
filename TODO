@@ -1,5 +1,12 @@
+* 20260201 fixed - bug on children after removing 'sevenzip' command 
 make directory on extract
+password for extract
 add missing props to info commands (isdir, packsize)
+filter notretrived prop (like {method type8})
 improve error messaging
-replace wstring_convert by toBytes/fromBytes
-outarchive command
+* 20260101 fixed - replace wstring_convert by toBytes/fromBytes
+create streams as callbacks members
+outarchive command with properties
+unload dll when not used
+
+

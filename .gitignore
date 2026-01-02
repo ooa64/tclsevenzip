@@ -41,6 +41,8 @@
 *.dwo
 
 # local
+win/Debug_*
+win/Release_*
 *.bak
 *.cmd
 *.sh
@@ -49,4 +51,5 @@
 *.sublime*
 .vs
 .vscode
+externals
 tmp

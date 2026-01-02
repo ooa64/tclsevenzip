@@ -13,6 +13,7 @@
 #define LIST_MATCH_EXACT (1 << 16)
 
 const int kpidPath = 3;
+const int kpidIsDir = 6;
 
 static const char *const SevenzipProperties[] = {
     "noproperty",
@@ -127,9 +128,8 @@ static int Tcl_StringCaseEqual(const char *str1, const char *str2, int nocase);
 static char *Path_WindowsPathToUnixPath(char *path);
 #endif
 
-SevenzipArchiveCmd::SevenzipArchiveCmd (Tcl_Interp *interp, const char *name, TclCmd *parent,
-        sevenzip::Lib& lib) :
-        TclCmd(interp, name, parent), archive(lib) {
+SevenzipArchiveCmd::SevenzipArchiveCmd (Tcl_Interp *interp, const char *name, TclCmd *parent) :
+        TclCmd(interp, name, parent), archive() {
     DEBUGLOG(this << " SevenzipArchiveCmd " << name);
 }
 
@@ -138,7 +138,7 @@ SevenzipArchiveCmd::~SevenzipArchiveCmd() {
     Close();
 }
 
-HRESULT SevenzipArchiveCmd::Open(SevenzipInStream* stream,
+HRESULT SevenzipArchiveCmd::Open(sevenzip::Lib& lib, SevenzipInStream* stream,
         Tcl_Obj* filename, int formatIndex) {
     DEBUGLOG(this << " SevenzipArchiveCmd::Open " << (filename ? Tcl_GetString(filename) : "NULL"));
     if (!stream)
@@ -147,24 +147,32 @@ HRESULT SevenzipArchiveCmd::Open(SevenzipInStream* stream,
         return E_FAIL;
     if (stream)
         this->stream = stream;
-    return archive.open(*stream,
+    return archive.open(lib, *stream,
             filename ? sevenzip::fromBytes(Tcl_GetString(filename)) : NULL,
             formatIndex);
 }
 
-HRESULT SevenzipArchiveCmd::Open(SevenzipInStream* stream,
+HRESULT SevenzipArchiveCmd::Open(sevenzip::Lib& lib, SevenzipInStream* stream,
         Tcl_Obj* filename, Tcl_Obj* password, int formatIndex) {
     DEBUGLOG(this << " SevenzipArchiveCmd::Open " << (filename ? Tcl_GetString(filename) : "NULL")
-            << " with password " << (password ? Tcl_GetString(password) : "NULL"));
+            << " " << (password ? Tcl_GetString(password) : "NULL"));
     if (!stream)
         return E_FAIL;
     if (stream && this->stream)
         return E_FAIL;
     if (stream)
         this->stream = stream;
-    return archive.open(*stream,
+
+    // NOTE: need to rewrite this or rewrite fromBytes to accept external buffer
+    wchar_t buffer[128];
+    if (password) {
+        wcsncpy(buffer, sevenzip::fromBytes(Tcl_GetString(password)), sizeof(buffer)/sizeof(buffer[0])-1);
+        buffer[sizeof(buffer)/sizeof(buffer[0])-1] = L'\0';
+    }
+
+    return archive.open(lib, *stream,
             filename ? sevenzip::fromBytes(Tcl_GetString(filename)) : NULL,
-            password ? sevenzip::fromBytes(Tcl_GetString(password)) : NULL,
+            password ? buffer : NULL,
             formatIndex);
 }
 
@@ -179,6 +187,7 @@ void SevenzipArchiveCmd::Close() {
 
 void SevenzipArchiveCmd::Cleanup() {
     DEBUGLOG(this << " SevenzipArchiveCmd::Cleanup");
+    // Close();
 };
 
 int SevenzipArchiveCmd::Command (int objc, Tcl_Obj *const objv[]) {
@@ -330,6 +339,7 @@ int SevenzipArchiveCmd::Command (int objc, Tcl_Obj *const objv[]) {
             Tcl_WrongNumArgs(tclInterp, 2, objv, NULL);
             return TCL_ERROR;
         } else {
+            // Close();
             delete this;
         }
         break;
@@ -363,7 +373,7 @@ int SevenzipArchiveCmd::Info(Tcl_Obj *info) {
             else if (archive.getTimeProperty(propId, uint32Value) == S_OK)
                 Tcl_ListObjAppendElement(NULL, info, Tcl_NewIntObj(uint32Value));
             else
-                Tcl_ListObjAppendElement(NULL, info, Tcl_ObjPrintf("type%d", propType));                
+                Tcl_ListObjAppendElement(NULL, info, Tcl_ObjPrintf("type%d", propType));
        }
     }
     //
@@ -450,10 +460,20 @@ int SevenzipArchiveCmd::List(Tcl_Obj *list, Tcl_Obj *pattern, char type, int fla
                         Tcl_ListObjAppendElement(NULL, propObj, Tcl_NewWideIntObj(uint64Value));
                     else if (archive.getTimeItemProperty(i, propId, uint32Value) == S_OK)
                         Tcl_ListObjAppendElement(NULL, propObj, Tcl_NewIntObj(uint32Value));
-                    else
-                        Tcl_ListObjAppendElement(NULL, propObj, Tcl_ObjPrintf("type%d", propType));                
+                    else {
+                        DEBUGLOG(this << "SevenzipArchiveCmd unhandled item " << i << " prop " << SevenzipProperties[propId] << " type? " << propType);
+                    }
                 }
             }
+            {
+                bool boolValue;
+                if (archive.getBoolItemProperty(i, kpidIsDir, boolValue) == S_OK) {
+                    // append missing isdir property
+                    Tcl_ListObjAppendElement(NULL, propObj, Tcl_NewStringObj("isdir", -1));
+                    Tcl_ListObjAppendElement(NULL, propObj, Tcl_NewBooleanObj(boolValue));
+                }
+            }
+
             // NOTE: above code may not list all properties (isdir,isanti,...?)
             // NOTE: There is an alternative way to get all properties
             
@@ -475,7 +495,7 @@ int SevenzipArchiveCmd::List(Tcl_Obj *list, Tcl_Obj *pattern, char type, int fla
             //         Tcl_ListObjAppendElement(NULL, propObj, Tcl_NewStringObj(SevenzipProperties[propId], -1));
             //         Tcl_ListObjAppendElement(NULL, propObj, Tcl_NewWideIntObj(uint64Value));
             //     } else {
-            //         DEBUGLOG("SevenzipArchiveCmd unhandled item " << i << " prop " << SevenzipProperties[propId]);
+            //         DEBUGLOG(this << "SevenzipArchiveCmd unhandled item " << i << " prop " << SevenzipProperties[propId]);
             //     }
             // }
             Tcl_ListObjAppendElement(NULL, list, propObj);
@@ -511,7 +531,7 @@ int SevenzipArchiveCmd::Extract(Tcl_Obj *source, Tcl_Obj *destination, Tcl_Obj *
             auto *stream = new SevenzipOutStream(tclInterp, usechannel ? destination : NULL);
             HRESULT hr = archive.extract(*stream, 
                     password ? sevenzip::fromBytes(Tcl_GetString(password)) : NULL, i);
-        delete stream;
+            delete stream;
             if (hr != S_OK)
                 result = TCL_ERROR;
             break;

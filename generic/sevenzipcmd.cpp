@@ -142,9 +142,9 @@ int SevenzipCmd::Command (int objc, Tcl_Obj *const objv[]) {
             // TODO: improve error messages on opening stream
             static unsigned long archiveCounter = 0;
             auto archiveCmd = Tcl_ObjPrintf("sevenzip%lu", archiveCounter++);
-            auto archive = new SevenzipArchiveCmd(tclInterp, Tcl_GetString(archiveCmd), this, lib);
+            auto archive = new SevenzipArchiveCmd(tclInterp, Tcl_GetString(archiveCmd), this);
             auto stream = new SevenzipInStream(tclInterp, usechannel ? objv[objc-1] : NULL);    
-            HRESULT hr = archive->Open(stream, usechannel ? NULL : objv[objc-1], password, type);
+            HRESULT hr = archive->Open(lib, stream, usechannel ? NULL : objv[objc-1], password, type);
             if (hr != S_OK) {
                 delete archive;
                 return LastError(hr);
@@ -186,7 +186,7 @@ int SevenzipCmd::SupportedExts (Tcl_Obj *exts) {
             wchar_t* b;
             wchar_t* t = wcstok(lib.getFormatExtensions(i), L" ", &b);
             while (t) {
-            Tcl_ListObjAppendElement(tclInterp, exts,
+                Tcl_ListObjAppendElement(tclInterp, exts,
                         Tcl_NewStringObj(sevenzip::toBytes(t), -1));
                 t = wcstok(NULL, L" ", &b);
             }

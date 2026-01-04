@@ -1,5 +1,7 @@
 #include "sevenzipstream.hpp"
 
+#include <sevenzip.h>
+
 #if defined(SEVENZIPSTREAM_DEBUG)
 #   include <iostream>
 #   define DEBUGLOG(_x_) (std::wcerr << "DEBUG: " << _x_ << "\n")
@@ -7,32 +9,13 @@
 #   define DEBUGLOG(_x_)
 #endif
 
-SevenzipInStream::SevenzipInStream(Tcl_Interp *interp, Tcl_Obj *channel) : 
+SevenzipInStream::SevenzipInStream(Tcl_Interp *interp) : 
         tclInterp(interp), tclChannel(NULL), usechannel(false) {
-    DEBUGLOG(this << " SevenzipInStream::SevenzipInStream, tclChannel " << tclChannel << " usechannel " << usechannel);
-    if (channel) {
-        int mode;
-        tclChannel = Tcl_GetChannel(interp, Tcl_GetString(channel), &mode);
-        if (tclChannel == NULL) {
-            return;
-        }
-        if ((mode & TCL_READABLE) != TCL_READABLE) {
-            Tcl_SetObjResult(tclInterp, Tcl_ObjPrintf(
-                    "channel \"%s\" wasn't opened for reading", Tcl_GetString(channel)));
-            tclChannel = NULL;
-            return;
-        }
-        if (Tcl_SetChannelOption(tclInterp, tclChannel, "-translation", "binary") != TCL_OK ||
-                Tcl_SetChannelOption(tclInterp, tclChannel, "-blocking", "0") != TCL_OK) {
-            tclChannel = NULL;
-            return;
-        }
-        usechannel = true;
-    }            
+    DEBUGLOG(this << " SevenzipInStream");            
 }
 
 SevenzipInStream::~SevenzipInStream() {
-    DEBUGLOG(this << " SevenzipInStream::~SevenzipInStream, tclChannel " << tclChannel << " usechannel " << usechannel);
+    DEBUGLOG(this << " ~SevenzipInStream, tclChannel " << tclChannel << " usechannel " << usechannel);
     Close();
 }
 
@@ -43,37 +26,38 @@ HRESULT SevenzipInStream::Open(const wchar_t *filename) {
     if (!filename)
         return E_FAIL;
 
-    Tcl_Obj *file = Tcl_NewStringObj(sevenzip::toBytes(filename), -1);
-    Tcl_IncrRefCount(file);
-    tclChannel = Tcl_FSOpenFileChannel(tclInterp, file, "rb", 0644);
-    if (tclChannel == NULL) {
-        Tcl_SetObjResult(tclInterp, Tcl_ObjPrintf(
-            "couldn't create file \"%s\": %s", Tcl_GetString(file), Tcl_PosixError(tclInterp)));
-        Tcl_DecrRefCount(file);
-        return sevenzip::getResult(false);
-    }    
-    Tcl_DecrRefCount(file);
-    return S_OK;
+    tclChannel = getFileChannel(tclInterp,
+            Tcl_NewStringObj(sevenzip::toBytes(filename), -1), false);
+    DEBUGLOG(this << " SevenzipInStream::Opened " << tclChannel << " errno " << Tcl_GetErrno());
+    return sevenzip::getResult(tclChannel);
 }
 
 HRESULT SevenzipInStream::Read(void* data, UInt32 size, UInt32 &processed) {
     DEBUGLOG(this << " SevenzipInStream::Read " << size);
-    if (tclChannel) {
-        processed = (unsigned int)Tcl_Read(tclChannel, (char *)data, (Tcl_Size)size);
-        if (processed >= 0)
-            return S_OK;
-    }
-    return E_FAIL;
+    if (!tclChannel)
+        return S_FALSE;
+
+    Tcl_Size result = Tcl_Read(tclChannel, (char *)data, (Tcl_Size)size);
+    processed = (UInt32)result;
+    if (result < 0)
+        Tcl_SetObjResult(tclInterp, Tcl_ObjPrintf(
+                "couldn't read from input stream: %s", Tcl_PosixError(tclInterp)));
+    DEBUGLOG(this << " SevenzipInStream::Read processed " << result << " errno " << Tcl_GetErrno());
+    return sevenzip::getResult(result >= 0);
 }
 
 HRESULT SevenzipInStream::Seek(Int64 offset, UInt32 origin, UInt64 &position) {
     DEBUGLOG(this << " SevenzipInStream::Seek " << offset << " as " << origin);
-    if (tclChannel) {
-        position = Tcl_Seek(tclChannel, offset, origin);
-        if (position >= 0)
-            return S_OK;
-    }
-    return E_FAIL;
+    if (!tclChannel)
+        return S_FALSE;
+
+    long long result = Tcl_Seek(tclChannel, offset, origin);
+    position = (UInt64)result;
+    if (result < 0)
+        Tcl_SetObjResult(tclInterp, Tcl_ObjPrintf(
+                "couldn't seek on input stream: %s", Tcl_PosixError(tclInterp)));
+    DEBUGLOG(this << " SevenzipInStream::Seek position " << result << " errno " << Tcl_GetErrno());
+    return sevenzip::getResult(result >= 0);
 }
 
 void SevenzipInStream::Close() {
@@ -86,7 +70,7 @@ void SevenzipInStream::Close() {
 
 sevenzip::Istream *SevenzipInStream::Clone() const {
     DEBUGLOG(this << " SevenzipInStream::Clone");
-    return new SevenzipInStream(tclInterp, NULL);
+    return new SevenzipInStream(tclInterp);
 }
 
 bool SevenzipInStream::IsDir(const wchar_t* filename) const {
@@ -106,35 +90,51 @@ UInt32 SevenzipInStream::GetTime(const wchar_t *filename) const {
     return 0;
 }
 
+HRESULT SevenzipInStream::AttachOpenChannel(Tcl_Obj *channel) {
+    DEBUGLOG(this << " SevenzipInStream::AttachOpenChannel " << Tcl_GetString(channel));
+    if (tclChannel || usechannel)
+        return S_FALSE;
 
-SevenzipOutStream::SevenzipOutStream(Tcl_Interp *interp, Tcl_Obj *channel):
+    tclChannel = getOpenChannel(tclInterp, channel, false);
+    if (!tclChannel)
+        return E_FAIL;
+    usechannel = true;
+    return S_OK;
+};
+
+HRESULT SevenzipInStream::AttachFileChannel(Tcl_Obj *filename) {
+    DEBUGLOG(this << " SevenzipInStream::AttachFileChannel " << Tcl_GetString(filename));
+    if (tclChannel || usechannel)
+        return S_FALSE;
+
+    tclChannel = getFileChannel(tclInterp, filename, true);
+    if (!tclChannel)
+        return E_FAIL;
+    usechannel = true;
+    return S_OK;
+};
+
+Tcl_Channel SevenzipInStream::DetachChannel() {
+    DEBUGLOG(this << " SevenzipInStream::DetachChannel");
+    if (!tclChannel)
+        return NULL;
+
+    Tcl_Channel channel = tclChannel;
+    tclChannel = NULL;
+    usechannel = false;
+    return channel;
+};
+
+
+SevenzipOutStream::SevenzipOutStream(Tcl_Interp *interp):
         tclInterp(interp), tclChannel(NULL), usechannel(false) {
-    DEBUGLOG(this << " SevenzipOutStream with channel " << (channel ? Tcl_GetString(channel) : "NULL"));
-    if (channel) {
-        int mode;
-        tclChannel = Tcl_GetChannel(tclInterp, Tcl_GetString(channel), &mode);
-        if (tclChannel == NULL) {
-            return;
-        }
-        if ((mode & TCL_WRITABLE) != TCL_WRITABLE) {
-            Tcl_SetObjResult(tclInterp, Tcl_ObjPrintf(
-                "channel \"%s\" wasn't opened for writing", Tcl_GetString(channel)));
-            tclChannel = NULL;
-            return;
-        }
-        if (Tcl_SetChannelOption(tclInterp, tclChannel, "-translation", "binary") != TCL_OK ||
-                Tcl_SetChannelOption(tclInterp, tclChannel, "-blocking", "0") != TCL_OK) {
-            tclChannel = NULL;
-            return;
-        }
-        usechannel = true;
-        }
-    }
+    DEBUGLOG(this << " SevenzipOutStream");
+}
 
 SevenzipOutStream::~SevenzipOutStream() {
     DEBUGLOG(this << " ~SevenzipOutStream");
     Close();
-        }
+}
 
 HRESULT SevenzipOutStream::Open(const wchar_t *filename) {
     DEBUGLOG(this << " SevenzipOutStream::Open " << filename);
@@ -143,37 +143,38 @@ HRESULT SevenzipOutStream::Open(const wchar_t *filename) {
     if (!filename)
         return E_FAIL;
 
-    Tcl_Obj *file = Tcl_NewStringObj(sevenzip::toBytes(filename), -1);
-    Tcl_IncrRefCount(file);
-    tclChannel = Tcl_FSOpenFileChannel(tclInterp, file, "wb", 0644);
-    if (tclChannel == NULL) {
-            Tcl_SetObjResult(tclInterp, Tcl_ObjPrintf(
-            "couldn't create file \"%s\": %s", Tcl_GetString(file), Tcl_PosixError(tclInterp)));
-        Tcl_DecrRefCount(file);
-        return sevenzip::getResult(false);
-        }
-    Tcl_DecrRefCount(file);
-    return S_OK;
+    tclChannel = getFileChannel(tclInterp,
+            Tcl_NewStringObj(sevenzip::toBytes(filename), -1), true);
+    DEBUGLOG(this << " SevenzipOutStream::Opened " << tclChannel << " errno " << Tcl_GetErrno());
+    return sevenzip::getResult(tclChannel);
 }
 
 HRESULT SevenzipOutStream::Write(const void *data, UInt32 size, UInt32 &processed) {
     DEBUGLOG(this << " SevenzipOutStream::Write " << size);
-    if (tclChannel) {
-        processed = (UInt32)Tcl_Write(tclChannel, (char *)data, (Tcl_Size)size);
-        if (processed >= 0)
-            return S_OK;
-    }
-    return E_FAIL;
+    if (!tclChannel)
+        return S_FALSE;
+
+    Tcl_Size result = Tcl_Write(tclChannel, (const char *)data, (Tcl_Size)size);
+    processed = (UInt32)result;
+    if (result < 0)
+        Tcl_SetObjResult(tclInterp, Tcl_ObjPrintf(
+                "couldn't write to output stream: %s", Tcl_PosixError(tclInterp)));
+    DEBUGLOG(this << " SevenzipOutStream::Write processed " << result << " errno " << Tcl_GetErrno());
+    return sevenzip::getResult(result >= 0);
 }
 
 HRESULT SevenzipOutStream::Seek(Int64 offset, UInt32 origin, UInt64 &position) {
     DEBUGLOG(this << " SevenzipOutStream::Seek " << offset << " as " << origin);
-    if (tclChannel) {
-        position = Tcl_Seek(tclChannel, offset, origin);
-        if (position >= 0)
-            return S_OK;
-        }
-    return E_FAIL;
+    if (!tclChannel)
+        return S_FALSE;
+
+    long long result = Tcl_Seek(tclChannel, offset, origin);
+    position = (UInt64)result;
+    if (result < 0)
+        Tcl_SetObjResult(tclInterp, Tcl_ObjPrintf(
+                "couldn't seek on output stream: %s", Tcl_PosixError(tclInterp)));
+    DEBUGLOG(this << " SevenzipOutStream::Seek position " << result << " errno " << Tcl_GetErrno());
+    return sevenzip::getResult(result >= 0);
 }
 
 void SevenzipOutStream::Close() {
@@ -181,20 +182,103 @@ void SevenzipOutStream::Close() {
     if (tclChannel && !usechannel) {
         Tcl_Close(tclInterp, tclChannel);
         tclChannel = NULL;
-        }
     }
+}
 
 HRESULT SevenzipOutStream::Mkdir(const wchar_t* dirname) {
     DEBUGLOG(this << " SevenzipOutStream::Mkdir " << dirname);
-    return S_FALSE;
+    return createDirectory(tclInterp,
+            Tcl_NewStringObj(sevenzip::toBytes(dirname), -1)) ? S_OK : S_FALSE;
 }
 
 HRESULT SevenzipOutStream::SetMode(const wchar_t* path, UInt32 mode) {
     DEBUGLOG(this << " SevenzipOutStream::SetMode " << path << " " << std::oct << mode);
     return S_FALSE;
-    }
+}
 
 HRESULT SevenzipOutStream::SetTime(const wchar_t* filename, UInt32 time) {
     DEBUGLOG(this << " SevenzipOutStream::SetTime " << filename << " " << time);
     return S_FALSE;
 }
+
+HRESULT SevenzipOutStream::AttachOpenChannel(Tcl_Obj *channel) {
+    DEBUGLOG(this << " SevenzipOutStream::AttachOpenChannel " << Tcl_GetString(channel));
+    if (tclChannel || usechannel)
+        return S_FALSE;
+
+    tclChannel = getOpenChannel(tclInterp, channel, true);
+    if (!tclChannel)
+        return E_FAIL;
+    usechannel = true;
+    return S_OK;
+};
+
+HRESULT SevenzipOutStream::AttachFileChannel(Tcl_Obj *filename) {
+    DEBUGLOG(this << " SevenzipOutStream::AttachFileChannel " << Tcl_GetString(filename));
+    if (tclChannel || usechannel)
+        return S_FALSE;
+
+    tclChannel = getFileChannel(tclInterp, filename, true);
+    if (!tclChannel)
+        return E_FAIL;
+    usechannel = true;
+    return S_OK;
+};
+
+Tcl_Channel SevenzipOutStream::DetachChannel() {
+    DEBUGLOG(this << " SevenzipOutStream::DetachChannel");
+    if (!tclChannel)
+        return NULL;
+    Tcl_Channel channel = tclChannel;
+    tclChannel = NULL;
+    usechannel = false;
+    return channel;
+};
+
+bool createDirectory(Tcl_Interp *tclInterp, Tcl_Obj *dirname) {
+    Tcl_IncrRefCount(dirname);
+    int result = Tcl_FSCreateDirectory(dirname);
+    Tcl_DecrRefCount(dirname);
+    return result == TCL_OK;
+}
+
+int lastError(Tcl_Interp *interp, HRESULT hr) {
+    if (Tcl_GetCharLength(Tcl_GetObjResult(interp)) == 0) {
+        if (hr == S_OK)
+            hr = sevenzip::getResult(true);
+        Tcl_SetObjResult(interp, Tcl_NewStringObj(
+                sevenzip::toBytes(sevenzip::getMessage(hr)), -1));
+    }
+    return TCL_ERROR;
+}
+
+Tcl_Channel getOpenChannel(Tcl_Interp *tclInterp, Tcl_Obj *channel, bool writable) {
+    int mode;
+    Tcl_Channel tclChannel = Tcl_GetChannel(tclInterp, Tcl_GetString(channel), &mode);
+    if (tclChannel == NULL) {
+        return NULL;
+    }
+    if (((writable && (mode & TCL_WRITABLE) != TCL_WRITABLE) ||
+            (!writable && (mode & TCL_READABLE) != TCL_READABLE))) {
+        Tcl_SetObjResult(tclInterp, Tcl_ObjPrintf("channel \"%s\" wasn't opened for %s",
+                Tcl_GetString(channel), writable ? "writing" : "reading" ));
+        return NULL;
+    }
+    if (Tcl_SetChannelOption(tclInterp, tclChannel, "-translation", "binary") != TCL_OK ||
+            Tcl_SetChannelOption(tclInterp, tclChannel, "-blocking", "0") != TCL_OK) {
+        return NULL;
+    }
+    return tclChannel;
+}
+
+Tcl_Channel getFileChannel(Tcl_Interp *tclInterp, Tcl_Obj *filename, bool writable) {
+    Tcl_IncrRefCount(filename);
+    Tcl_Channel tclChannel = Tcl_FSOpenFileChannel(tclInterp, filename, writable ? "wb" : "rb", 0644);
+    if (tclChannel == NULL) {
+        Tcl_SetObjResult(tclInterp, Tcl_ObjPrintf("couldn't open file \"%s\": %s",
+                Tcl_GetString(filename), Tcl_PosixError(tclInterp)));
+    }
+    Tcl_DecrRefCount(filename);
+    return tclChannel;
+}
+

@@ -8,7 +8,7 @@ class SevenzipInStream:  public sevenzip::Istream {
 
 public:
 
-    SevenzipInStream(Tcl_Interp *interp, Tcl_Obj *channel);
+    SevenzipInStream(Tcl_Interp *interp);
     virtual ~SevenzipInStream();
 
     virtual HRESULT Open(const wchar_t *filename) override;
@@ -23,6 +23,10 @@ public:
     virtual UInt32 GetMode(const wchar_t *filename) const override;
     virtual UInt32 GetTime(const wchar_t *filename) const override;
 
+    HRESULT AttachOpenChannel(Tcl_Obj *channel);
+    HRESULT AttachFileChannel(Tcl_Obj *filename);
+    Tcl_Channel DetachChannel();    
+
 private:
 
     Tcl_Interp *tclInterp;
@@ -34,7 +38,7 @@ class SevenzipOutStream:  public sevenzip::Ostream {
 
 public:
 
-    SevenzipOutStream(Tcl_Interp *interp, Tcl_Obj *channel);
+    SevenzipOutStream(Tcl_Interp *interp);
     virtual ~SevenzipOutStream();
 
     virtual HRESULT Open(const wchar_t *filename) override;
@@ -47,7 +51,9 @@ public:
     virtual HRESULT SetMode(const wchar_t* path, UInt32 mode) override;
     virtual HRESULT SetTime(const wchar_t* filename, UInt32 time) override;
 
-    // bool Valid() {return !!tclChannel;};
+    HRESULT AttachOpenChannel(Tcl_Obj *channel);
+    HRESULT AttachFileChannel(Tcl_Obj *filename);
+    Tcl_Channel DetachChannel();
 
 private:
 
@@ -55,5 +61,10 @@ private:
     Tcl_Channel tclChannel;
     bool usechannel;
 };
+
+int lastError(Tcl_Interp *interp, HRESULT hr);
+bool createDirectory(Tcl_Interp *tclInterp, Tcl_Obj *dirname);
+Tcl_Channel getOpenChannel(Tcl_Interp *tclInterp, Tcl_Obj *channel, bool writable);
+Tcl_Channel getFileChannel(Tcl_Interp *tclInterp, Tcl_Obj *filename, bool writable);
 
 #endif

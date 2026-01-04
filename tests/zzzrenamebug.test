@@ -4,7 +4,7 @@ if {[lsearch [namespace children] ::tcltest] < 0} {
 }
 
 
-package require sevenzip
+package require sevenzip 1
 catch {
     if {[info exist env(7ZDLL)]} {
         sevenzip initialize $env(7ZDLL)

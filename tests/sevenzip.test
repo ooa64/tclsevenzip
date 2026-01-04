@@ -103,7 +103,8 @@ test sevenzip-2.1 {extensions} -constraints have7zip -body {
 
 test sevenzip-2.2.1 {open notexistent} -constraints have7zip -body {
     sevenzip open [file join [testsDirectory] files notexistent]
-} -returnCodes 1 -result {couldn't read file "*/files/notexistent": no such file or directory} -match glob
+} -returnCodes 1 -result {couldn't open file "*/files/notexistent": no such file or directory} -match glob
+# -returnCodes 1 -result {couldn't read file "*/files/notexistent": no such file or directory} -match glob
 
 test sevenzip-2.2.2 {open unknown format} -constraints have7zip -body {
     sevenzip open -forcetype txt [file join [testsDirectory] files test.txt]
@@ -131,7 +132,8 @@ test sevenzip-2.2.6 {open nonreadable channel} -constraints have7zip -setup {
 
 test sevenzip-2.2.7 {open nonseekable channel} -constraints have7zip -body {
     sevenzip open -c stdin
-} -returnCodes 1 -result {couldn't seek on "stdin": invalid argument}
+} -returnCodes 1 -result {couldn't seek on input stream: invalid argument}
+# -returnCodes 1 -result {couldn't seek on "stdin": invalid argument}
 
 test sevenzip-2.6 {open by force type} -constraints have7zip -body {
     set cmd [sevenzip open -forcetype 7z [file join [testsDirectory] files test.7z]]
@@ -185,7 +187,8 @@ test sevenzip-3.3 {command info} -constraints have7zip -setup {
     $cmd close
 } -body {
     $cmd info
-} -result {solid 0 physize 131 headerssize 122}
+} -result {headerssize 122 method LZMA:12 solid 0 numblocks 1 physize 131}    
+# -result {solid 0 physize 131 headerssize 122}
 
 test sevenzip-3.4 {command count} -constraints have7zip -setup {
     set cmd [sevenzip open [file join [testsDirectory] files test.7z]]
@@ -318,7 +321,8 @@ test sevenzip-4.10 {detailed list} -constraints have7zip -setup {
     $cmd list -info
 } -cleanup {
     $cmd close
-} -result {{packsize 9 attrib 33 mtime 1759752741 encrypted 0 path test.txt isdir 0 size 4}}
+} -result {{path test.txt size 4 packsize 9 mtime 1759752741 attrib 33 crc -662733300 encrypted 0 method LZMA:12 block 0 isdir 0}}
+# -result {{packsize 9 attrib 33 mtime 1759752741 encrypted 0 path test.txt isdir 0 size 4}}
 
 test sevenzip-4.11 {complex list} -constraints have7zip -setup {
     set cmd [sevenzip open [file join [testsDirectory] files testDIRS.7z]]
@@ -385,7 +389,22 @@ test sevenzip-4.15 {complex detailed list} -constraints have7zip -setup {
     join [$cmd list -info] \n
 } -cleanup {
     $cmd close
-} -result {packsize 0 attrib 16 mtime 1759411690 encrypted 0 path testDIRS isdir 1 size 0
+} -result {path testDIRS size 0 packsize 0 mtime 1759411690 attrib 16 encrypted 0 isdir 1
+path testDIRS/test1 size 0 packsize 0 mtime 1759410798 attrib 16 encrypted 0 isdir 1
+path testDIRS/test2 size 0 packsize 0 mtime 1759411705 attrib 16 encrypted 0 isdir 1
+path testDIRS/test3 size 0 packsize 0 mtime 1759410901 attrib 16 encrypted 0 isdir 1
+path testDIRS/test3/test31 size 0 packsize 0 mtime 1759410880 attrib 16 encrypted 0 isdir 1
+path testDIRS/test3/test32 size 0 packsize 0 mtime 1759411673 attrib 16 encrypted 0 isdir 1
+path testDIRS/test3/test33 size 0 packsize 0 mtime 1759410923 attrib 16 encrypted 0 isdir 1
+path testDIRS/test3/test33/test331 size 0 packsize 0 mtime 1759410923 attrib 16 encrypted 0 isdir 1
+path testDIRS/test2/test21.txt size 6 packsize 26 mtime 1759410852 attrib 32 crc -427848196 encrypted 0 method LZMA:12 block 0 isdir 0
+path testDIRS/test2/test22.txt size 6 mtime 1759410861 attrib 32 crc 2138496070 encrypted 0 method LZMA:12 block 0 isdir 0
+path testDIRS/test2/test23.txt size 6 mtime 1759411705 attrib 32 crc 141683920 encrypted 0 method LZMA:12 block 0 isdir 0
+path testDIRS/test3/test32/test321.txt size 7 mtime 1759411673 attrib 32 crc 501094393 encrypted 0 method LZMA:12 block 0 isdir 0
+path testDIRS/test4.txt size 5 mtime 1759410820 attrib 32 crc -86497171 encrypted 0 method LZMA:12 block 0 isdir 0
+path testDIRS/test5.txt size 5 mtime 1759411684 attrib 32 crc -1914758917 encrypted 0 method LZMA:12 block 0 isdir 0
+path testDIRS/test6.txt size 5 mtime 1759411690 attrib 32 crc 349587777 encrypted 0 method LZMA:12 block 0 isdir 0}
+if 0 {packsize 0 attrib 16 mtime 1759411690 encrypted 0 path testDIRS isdir 1 size 0
 packsize 0 attrib 16 mtime 1759410798 encrypted 0 path testDIRS/test1 isdir 1 size 0
 packsize 0 attrib 16 mtime 1759411705 encrypted 0 path testDIRS/test2 isdir 1 size 0
 packsize 0 attrib 16 mtime 1759410901 encrypted 0 path testDIRS/test3 isdir 1 size 0
@@ -417,7 +436,10 @@ test sevenzip-4.17 {intl detailed list} -constraints {have7zip encodingOk} -setu
     join [$cmd list -info] \n
 } -cleanup {
     $cmd close
-} -result {packsize 0 attrib 16 mtime 1759411064 encrypted 0 path тест isdir 1 size 0
+} -result {path тест size 0 packsize 0 mtime 1759411064 attrib 16 encrypted 0 isdir 1
+path тест/тест1 size 0 packsize 0 mtime 1759818836 attrib 16 encrypted 0 isdir 1
+path тест/тест1/тест1.txt size 9 packsize 14 mtime 1759818836 attrib 32 crc 553607347 encrypted 0 method LZMA:12 block 0 isdir 0}
+if 0 {packsize 0 attrib 16 mtime 1759411064 encrypted 0 path тест isdir 1 size 0
 packsize 0 attrib 16 mtime 1759818836 encrypted 0 path тест/тест1 isdir 1 size 0
 packsize 14 attrib 32 mtime 1759818836 encrypted 0 path тест/тест1/тест1.txt isdir 0 size 9}
 
@@ -435,7 +457,8 @@ test sevenzip-4.19 {encrypted archive list} -constraints have7zip -setup {
     $cmd list -info
 } -cleanup {
     $cmd close
-} -result {{packsize 16 attrib 33 mtime 1759752741 encrypted 1 path test.txt isdir 0 size 4}}
+} -result {{path test.txt size 4 packsize 16 mtime 1759752741 attrib 33 crc -662733300 encrypted 1 method {LZMA:12 7zAES:19} block 0 isdir 0}}
+# -result {{packsize 16 attrib 33 mtime 1759752741 encrypted 1 path test.txt isdir 0 size 4}}
 
 test sevenzip-4.20 {encrypted item list} -constraints have7zip -setup {
     set cmd [sevenzip open [file join [testsDirectory] files testPWD1.7z]]
@@ -443,7 +466,8 @@ test sevenzip-4.20 {encrypted item list} -constraints have7zip -setup {
     $cmd list -info
 } -cleanup {
     $cmd close
-} -result {{packsize 16 attrib 33 mtime 1759752741 encrypted 1 path test.txt isdir 0 size 4}}
+} -result {{path test.txt size 4 packsize 16 mtime 1759752741 attrib 33 crc -662733300 encrypted 1 method {LZMA:12 7zAES:19} block 0 isdir 0}}
+# -result {{packsize 16 attrib 33 mtime 1759752741 encrypted 1 path test.txt isdir 0 size 4}}
 
 test sevenzip-5.0.1 {extract syntax} -constraints {have7zip} -setup {
     set cmd [sevenzip open [file join [testsDirectory] files test.7z]]
@@ -493,7 +517,8 @@ test sevenzip-5.2 {extract invalid destination} -constraints {have7zip} -setup {
     $cmd extract test.txt $out
 } -cleanup {
     $cmd close
-} -returnCodes 1 -result {couldn't create file "*/notexistent/test.txt": no such file or directory} -match glob
+} -returnCodes 1 -result {couldn't open file "*/notexistent/test.txt": no such file or directory} -match glob
+# -returnCodes 1 -result {couldn't create file "*/notexistent/test.txt": no such file or directory} -match glob
 
 test sevenzip-5.3 {extract ok} -constraints {have7zip} -setup {
     set cmd [sevenzip open [file join [testsDirectory] files test.7z]]
@@ -602,7 +627,8 @@ test sevenzip-5.8 {extract encrypted data error} -constraints {have7zip} -setup 
 } -cleanup {
     $cmd close
     file delete $out
-} -result {}
+} -result {need password} -returnCodes 1
+# -result {}
 
 test sevenzip-5.9 {extract encrypted data with archive password} -constraints {have7zip} -setup {
     set cmd [sevenzip open -p TEST [file join [testsDirectory] files testPWD0.7z]]
@@ -645,8 +671,9 @@ test sevenzip-6.0 {open singlevolume with -m} -constraints {have7zip} -body {
 } -result {}
 
 test sevenzip-6.1 {open multivolume w/o -m} -constraints {have7zip} -body {
-    sevenzip open [file join [testsDirectory] files testMVOL.7z.001]
-} -returnCodes 1 -result {not supported}
+    [sevenzip open [file join [testsDirectory] files testMVOL.7z.001]] close
+# -returnCodes 1 -result {not supported}
+} -returnCodes 0 -result {}
 
 test sevenzip-6.2 {open multivolume} -constraints {have7zip} -body {
     set cmd [sevenzip open -m [file join [testsDirectory] files testMVOL.7z.001]]

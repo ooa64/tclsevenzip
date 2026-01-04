@@ -1,8 +1,7 @@
 #include "sevenzipcmd.hpp"
 #include "sevenziparchivecmd.hpp"
-#include "sevenzipstream.hpp"
 
-#include <cwchar>
+#include <wchar.h>
 
 #if defined(SEVENZIPCMD_DEBUG)
 #   include <iostream>
@@ -136,20 +135,11 @@ int SevenzipCmd::Command (int objc, Tcl_Obj *const objv[]) {
             if (type < 0 && forcetype) {
                 type = lib.getFormatByExtension(sevenzip::fromBytes(Tcl_GetString(forcetype)));
                 if (type < 0)
-                    return LastError(E_NOTIMPL);
+                    return lastError(tclInterp, E_NOTSUPPORTED);
             }
-            // TODO: stream should be owned by archive cmd, create it there?
-            // TODO: improve error messages on opening stream
             static unsigned long archiveCounter = 0;
-            auto archiveCmd = Tcl_ObjPrintf("sevenzip%lu", archiveCounter++);
-            auto archive = new SevenzipArchiveCmd(tclInterp, Tcl_GetString(archiveCmd), this);
-            auto stream = new SevenzipInStream(tclInterp, usechannel ? objv[objc-1] : NULL);    
-            HRESULT hr = archive->Open(lib, stream, usechannel ? NULL : objv[objc-1], password, type);
-            if (hr != S_OK) {
-                delete archive;
-                return LastError(hr);
-            }
-            Tcl_SetObjResult(tclInterp, archiveCmd);
+            auto command = Tcl_ObjPrintf("sevenzip%lu", archiveCounter++);
+            return OpenArchive(command, objv[objc-1], password, type, usechannel);
         } else {
             Tcl_WrongNumArgs(tclInterp, 2, objv, "?options? filename");
             return TCL_ERROR;
@@ -174,7 +164,8 @@ int SevenzipCmd::Initialize (Tcl_Obj *dll) {
     } else if (lib.load(SEVENZIPDLL)) {
         return TCL_OK;
     }
-    Tcl_SetObjResult(tclInterp, Tcl_NewStringObj(sevenzip::toBytes(lib.getLoadMessage()), -1));
+    Tcl_SetObjResult(tclInterp, Tcl_NewStringObj(
+            sevenzip::toBytes(lib.getLoadMessage()), -1));
     // Tcl_SetObjResult(tclInterp, Tcl_NewStringObj("error loading 7z library", -1));
     return TCL_ERROR;
 }
@@ -193,35 +184,26 @@ int SevenzipCmd::SupportedExts (Tcl_Obj *exts) {
         }
         return TCL_OK;
     }
-    Tcl_SetObjResult(tclInterp, Tcl_NewStringObj(sevenzip::toBytes(sevenzip::getMessage(LastError())), -1));
+    Tcl_SetObjResult(tclInterp, Tcl_NewStringObj(
+            sevenzip::toBytes(sevenzip::getMessage(lastError(tclInterp, S_OK))), -1));
     // Tcl_SetObjResult(tclInterp, Tcl_NewStringObj("error loading 7z library", -1));
     return TCL_ERROR;
 }
 
-// int SevenzipCmd::OpenChannel(Tcl_Obj *channelName, tcl_Channel &tclChannel) {
-//     int mode;
-//     tclChannel = Tcl_GetChannel(interp, Tcl_GetString(channel), &mode);
-//     if (tclChannel != NULL) {
-//         return TCL_ERROR;
-//     }
-//     if ((mode & TCL_READABLE) != TCL_READABLE) {
-//         Tcl_SetObjResult(tclInterp, Tcl_ObjPrintf(
-//                 "channel \"%s\" wasn't opened for reading", Tcl_GetString(channel)));
-//         tclChannel = NULL;
-//         return TCL_ERROR;
-//     }
-//     if (Tcl_SetChannelOption(tclInterp, tclChannel, "-translation", "binary") != TCL_OK ||
-//             Tcl_SetChannelOption(tclInterp, tclChannel, "-blocking", "0") != TCL_OK) {
-//         tclChannel = NULL;
-//         return TCL_ERROR;
-//     }
-//     return TCL_OK;
-// }
-
-int SevenzipCmd::LastError(HRESULT hr) {
+int SevenzipCmd::OpenArchive(Tcl_Obj *command, Tcl_Obj *source,
+        Tcl_Obj *password, int type, bool usechannel) {
+    // TODO: stream should be owned by archive cmd, create it there?
+    auto archive = new SevenzipArchiveCmd(tclInterp, Tcl_GetString(command), this);
+    auto stream = new SevenzipInStream(tclInterp);
+    HRESULT hr = S_OK;
+    if (usechannel)
+        hr = stream->AttachOpenChannel(source);
     if (hr == S_OK)
-        hr = sevenzip::getResult(false);
-    Tcl_SetObjResult(tclInterp, Tcl_NewStringObj(
-            sevenzip::toBytes(sevenzip::getMessage(hr)), -1));
-    return TCL_ERROR;
+        hr = archive->Open(lib, stream, usechannel ? NULL : source, password, type);
+    if (hr != S_OK) {
+        delete archive; 
+        return lastError(tclInterp, hr);
+    }
+    Tcl_SetObjResult(tclInterp, command);
+    return TCL_OK;
 }

@@ -19,9 +19,8 @@ private:
 
     int Initialize (Tcl_Obj * dll);
     int SupportedExts (Tcl_Obj * exts);
-    // int OpenChannel(Tcl_Obj *channelName, tcl_Channel &tclChannel);
-    int LastError (HRESULT hr = S_OK);
-
+    int OpenArchive(Tcl_Obj *command, Tcl_Obj *source,
+            Tcl_Obj *password, int type, bool usechannel);
 
     virtual int Command (int objc, Tcl_Obj * const objv[]);
 };

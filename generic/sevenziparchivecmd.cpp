@@ -1,6 +1,7 @@
 #include "sevenziparchivecmd.hpp"
 
 #include <string.h>
+#include <wchar.h>
 
 #if defined(SEVENZIPARCHIVECMD_DEBUG)
 #   include <iostream>
@@ -164,12 +165,9 @@ HRESULT SevenzipArchiveCmd::Open(sevenzip::Lib& lib, SevenzipInStream* stream,
     if (stream)
         this->stream = stream;
 
-    // NOTE: need to rewrite this or rewrite fromBytes to accept external buffer
     wchar_t buffer[128];
-    if (password) {
-        wcsncpy(buffer, sevenzip::fromBytes(Tcl_GetString(password)), sizeof(buffer)/sizeof(buffer[0])-1);
-        buffer[sizeof(buffer)/sizeof(buffer[0])-1] = L'\0';
-    }
+    if (password)
+        sevenzip::fromBytes(buffer, sizeof(buffer)/sizeof(buffer[0]), Tcl_GetString(password));
 
     return archive.open(lib, *stream,
             filename ? sevenzip::fromBytes(Tcl_GetString(filename)) : NULL,
@@ -188,7 +186,6 @@ void SevenzipArchiveCmd::Close() {
 
 void SevenzipArchiveCmd::Cleanup() {
     DEBUGLOG(this << " SevenzipArchiveCmd::Cleanup");
-    // Close();
 };
 
 int SevenzipArchiveCmd::Command (int objc, Tcl_Obj *const objv[]) {
@@ -213,8 +210,6 @@ int SevenzipArchiveCmd::Command (int objc, Tcl_Obj *const objv[]) {
     case cmInfo:
 
         if (objc == 2) {
-        //     if (!Valid())
-        //         return TCL_ERROR;
             if (Info(Tcl_GetObjResult(tclInterp)) != TCL_OK)
                 return TCL_ERROR;
         } else {
@@ -228,7 +223,7 @@ int SevenzipArchiveCmd::Command (int objc, Tcl_Obj *const objv[]) {
         if (objc == 2) {
             int count = archive.getNumberOfItems();
             if (count < 0)
-                return LastError();
+                return lastError(tclInterp, 0);
             Tcl_SetObjResult(tclInterp, Tcl_NewIntObj(count));
         } else {
             Tcl_WrongNumArgs(tclInterp, 2, objv, NULL);
@@ -340,7 +335,6 @@ int SevenzipArchiveCmd::Command (int objc, Tcl_Obj *const objv[]) {
             Tcl_WrongNumArgs(tclInterp, 2, objv, NULL);
             return TCL_ERROR;
         } else {
-            // Close();
             delete this;
         }
         break;
@@ -577,14 +571,6 @@ int SevenzipArchiveCmd::Extract(Tcl_Obj *source, Tcl_Obj *destination, Tcl_Obj *
         result = TCL_ERROR;
     }
     return result;
-}
-
-int SevenzipArchiveCmd::LastError(HRESULT hr) {
-    if (hr == S_OK)
-        hr = sevenzip::getResult(false);
-    Tcl_SetObjResult(tclInterp, Tcl_NewStringObj(
-            sevenzip::toBytes(sevenzip::getMessage(hr)), -1));
-    return TCL_ERROR;
 }
 
 static int Tcl_StringCaseEqual(const char *str1, const char *str2, int nocase) {

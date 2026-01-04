@@ -23,13 +23,9 @@ private:
     SevenzipInStream* stream = NULL;
     sevenzip::Iarchive archive;
 
-    int LastError(HRESULT hr = S_OK);
-
     int Info(Tcl_Obj *info);
     int List(Tcl_Obj *list, Tcl_Obj *pattern, char type, int flags, bool info);
     int Extract(Tcl_Obj *source, Tcl_Obj *destination, Tcl_Obj *password, bool usechannel);
-
-    // bool Valid ();
 
     virtual int Command (int objc, Tcl_Obj * const objv[]);
     virtual void Cleanup();

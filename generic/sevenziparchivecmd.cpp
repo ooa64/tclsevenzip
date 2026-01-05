@@ -13,10 +13,29 @@
 #define LIST_MATCH_NOCASE TCL_MATCH_NOCASE
 #define LIST_MATCH_EXACT (1 << 16)
 
-const int kpidPath = 3;
-const int kpidIsDir = 6;
-const int kpidPhysSize = 44;
+// from CPP/Common/MyWindows.h - only the needed values
+enum {
+    VT_I2 = 2,
+    VT_I4 = 3,
+    VT_BSTR = 8,
+    VT_BOOL = 11,
+    VT_I1 = 16,
+    VT_UI1 = 17,
+    VT_UI2 = 18,
+    VT_UI4 = 19,
+    VT_I8 = 20,
+    VT_UI8 = 21,
+    VT_FILETIME = 64
+};
 
+// from /CPP/7zip/PropID.h - only the needed values
+enum {
+    kpidPath = 3,
+    kpidIsDir = 6,
+    kpidPhySize = 44
+};
+
+// from /CPP/7zip/PropID.h - all property names
 static const char *const SevenzipProperties[] = {
     "noproperty",
     "mainsubfile",
@@ -353,41 +372,59 @@ int SevenzipArchiveCmd::Info(Tcl_Obj *info) {
             bool boolValue;
             UInt32 uint32Value;
             UInt64 uint64Value;
-            Tcl_Obj *nameObj = propId < sizeof(SevenzipProperties)/sizeof(SevenzipProperties[0]) 
-                ? Tcl_NewStringObj(SevenzipProperties[propId], -1)
-                : Tcl_ObjPrintf("prop%d", propId);
-            if (archive.getStringProperty(propId, stringValue) == S_OK) {
-                Tcl_ListObjAppendElement(NULL, info, nameObj);
-                Tcl_ListObjAppendElement(NULL, info, Tcl_NewStringObj(sevenzip::toBytes(stringValue), -1));
-            } else if (archive.getBoolProperty(propId, boolValue) == S_OK) {
-                Tcl_ListObjAppendElement(NULL, info, nameObj);
-                Tcl_ListObjAppendElement(NULL, info, Tcl_NewBooleanObj(boolValue));
-            } else if (archive.getIntProperty(propId, uint32Value) == S_OK) {
-                Tcl_ListObjAppendElement(NULL, info, nameObj);
-                Tcl_ListObjAppendElement(NULL, info, Tcl_NewIntObj(uint32Value));
-            } else if (archive.getWideProperty(propId, uint64Value) == S_OK) {
-                Tcl_ListObjAppendElement(NULL, info, nameObj);
-                Tcl_ListObjAppendElement(NULL, info, Tcl_NewWideIntObj(uint64Value));
-            } else if (archive.getTimeProperty(propId, uint32Value) == S_OK) {
-                Tcl_ListObjAppendElement(NULL, info, nameObj);
-                Tcl_ListObjAppendElement(NULL, info, Tcl_NewIntObj(uint32Value));
+            Tcl_Obj *value = NULL;
+            switch (propType) {
+            case VT_BSTR:
+                if (archive.getStringProperty(propId, stringValue) == S_OK)
+                    value = Tcl_NewStringObj(sevenzip::toBytes(stringValue), -1);
+                break;
+            case VT_BOOL:
+                if (archive.getBoolProperty(propId, boolValue) == S_OK)
+                    value = Tcl_NewBooleanObj(boolValue);
+                break;
+            case VT_I1:
+            case VT_I2:
+            case VT_I4:
+            case VT_UI1:
+            case VT_UI2:
+            case VT_UI4:
+                if (archive.getIntProperty(propId, uint32Value) == S_OK)
+                    value = Tcl_NewIntObj(uint32Value);
+                break;
+            case VT_I8:
+            case VT_UI8:
+                if (archive.getWideProperty(propId, uint64Value) == S_OK)
+                    value = Tcl_NewWideIntObj(uint64Value);
+                break;
+            case VT_FILETIME:
+                if (archive.getTimeProperty(propId, uint32Value) == S_OK)
+                    value = Tcl_NewIntObj(uint32Value);
+                break;
+            default:
+                DEBUGLOG(this << " SevenzipArchiveCmd unknown prop id " << propId << " type " << propType);
+                break;
+            }
+            if (value) {
+                Tcl_ListObjAppendElement(NULL, info, 
+                    propId < sizeof(SevenzipProperties)/sizeof(SevenzipProperties[0]) 
+                        ? Tcl_NewStringObj(SevenzipProperties[propId], -1)
+                        : Tcl_ObjPrintf("prop%d", propId));
+                Tcl_ListObjAppendElement(NULL, info, value);
             } else {
-                DEBUGLOG(this << " SevenzipArchiveCmd unhandled prop " << i << " " << Tcl_GetString(nameObj)
-                    << " prop " << SevenzipProperties[propId] << " type? " << propType);
-                Tcl_DecrRefCount(nameObj);
+                DEBUGLOG(this << " SevenzipArchiveCmd unhandled prop id " << propId << " type " << propType);
             }
         }
     }
     {
         // append missing physize property (compatibility with older versions)
         UInt64 uint64Value;
-        if (archive.getWideProperty(kpidPhysSize, uint64Value) == S_OK) {
+        if (archive.getWideProperty(kpidPhySize, uint64Value) == S_OK) {
             Tcl_ListObjAppendElement(NULL, info, Tcl_NewStringObj("physize", -1));
             Tcl_ListObjAppendElement(NULL, info, Tcl_NewWideIntObj(uint64Value));
         }
     }
     //
-    // NOTE: above code may not list all properties (physize,errorflags,...?)
+    // NOTE: above code may not list all properties (physize,errorflags,...?) or have another type (numblocks)
     // NOTE: There is an alternative way to get all properties
     // 
     // for (PROPID propId = 0; propId < sizeof(SevenzipProperties)/sizeof(SevenzipProperties[0]); propId++) {
@@ -440,7 +477,7 @@ int SevenzipArchiveCmd::List(Tcl_Obj *list, Tcl_Obj *pattern, char type, int fla
             }
         }
         if (info) {
-            Tcl_Obj *propObj = Tcl_NewObj();
+            Tcl_Obj *prop = Tcl_NewObj();
             int n = archive.getNumberOfItemProperties();
             for (int j = 0; j < n; j++) {
                 PROPID propId;
@@ -450,42 +487,60 @@ int SevenzipArchiveCmd::List(Tcl_Obj *list, Tcl_Obj *pattern, char type, int fla
                     bool boolValue;
                     UInt32 uint32Value;
                     UInt64 uint64Value;
-                    Tcl_Obj *nameObj = propId < sizeof(SevenzipProperties)/sizeof(SevenzipProperties[0]) 
-                        ? Tcl_NewStringObj(SevenzipProperties[propId], -1)
-                        : Tcl_ObjPrintf("prop%d", propId);
+                    Tcl_Obj *value = NULL;
+                    switch (propType) {
+                    case VT_BSTR:
 #ifdef _WIN32
-                    if (propId == kpidPath && archive.getStringItemProperty(i, propId, stringValue) == S_OK) {
-                        Tcl_ListObjAppendElement(NULL, propObj, nameObj);
-                        Tcl_ListObjAppendElement(NULL, propObj, 
-                                Tcl_NewStringObj(Path_WindowsPathToUnixPath(sevenzip::toBytes(stringValue)), -1));
-                    } else                        
+                        if (propId == kpidPath) {
+                            if (archive.getStringItemProperty(i, propId, stringValue) == S_OK)
+                                value = Tcl_NewStringObj(Path_WindowsPathToUnixPath(sevenzip::toBytes(stringValue)), -1);
+                            break;
+                        }
 #endif
-                    if (archive.getStringItemProperty(i, propId, stringValue) == S_OK) {
-                        Tcl_ListObjAppendElement(NULL, propObj, nameObj);
-                        Tcl_ListObjAppendElement(NULL, propObj, Tcl_NewStringObj(sevenzip::toBytes(stringValue), -1));
-                    } else if (archive.getBoolItemProperty(i, propId, boolValue) == S_OK) {
-                        Tcl_ListObjAppendElement(NULL, propObj, nameObj);
-                        Tcl_ListObjAppendElement(NULL, propObj, Tcl_NewBooleanObj(boolValue));
-                    } else if (archive.getIntItemProperty(i, propId, uint32Value) == S_OK) {
-                        Tcl_ListObjAppendElement(NULL, propObj, nameObj);
-                        Tcl_ListObjAppendElement(NULL, propObj, Tcl_NewIntObj(uint32Value));
-                    } else if (archive.getWideItemProperty(i, propId, uint64Value) == S_OK) {
-                        Tcl_ListObjAppendElement(NULL, propObj, nameObj);
-                        Tcl_ListObjAppendElement(NULL, propObj, Tcl_NewWideIntObj(uint64Value));
-                    } else if (archive.getTimeItemProperty(i, propId, uint32Value) == S_OK) {
-                        Tcl_ListObjAppendElement(NULL, propObj, nameObj);
-                        Tcl_ListObjAppendElement(NULL, propObj, Tcl_NewIntObj(uint32Value));
+                        if (archive.getStringItemProperty(i, propId, stringValue) == S_OK)
+                            value = Tcl_NewStringObj(sevenzip::toBytes(stringValue), -1);
+                        break;
+                    case VT_BOOL:
+                        if (archive.getBoolItemProperty(i, propId, boolValue) == S_OK)
+                            value = Tcl_NewBooleanObj(boolValue);
+                        break;
+                    case VT_I1:
+                    case VT_I2:
+                    case VT_I4:
+                    case VT_UI1:
+                    case VT_UI2:
+                    case VT_UI4:
+                        if (archive.getIntItemProperty(i, propId, uint32Value) == S_OK)
+                            value = Tcl_NewIntObj(uint32Value);
+                        break;
+                    case VT_I8:
+                    case VT_UI8:
+                        if (archive.getWideItemProperty(i, propId, uint64Value) == S_OK)
+                            value = Tcl_NewWideIntObj(uint64Value);
+                        break;
+                    case VT_FILETIME:
+                        if (archive.getTimeItemProperty(i, propId, uint32Value) == S_OK)
+                            value = Tcl_NewIntObj(uint32Value);
+                        break;
+                    default:
+                        DEBUGLOG(this << " SevenzipArchiveCmd unknown item " << i << " prop id " << propId << " type " << propType);
+                        break;
+                    }
+                    if (value) {
+                        Tcl_ListObjAppendElement(NULL, prop, 
+                                propId < sizeof(SevenzipProperties)/sizeof(SevenzipProperties[0]) 
+                                    ? Tcl_NewStringObj(SevenzipProperties[propId], -1)
+                                    : Tcl_ObjPrintf("prop%d", propId));
+                        Tcl_ListObjAppendElement(NULL, prop, value);
                     } else {
-                        DEBUGLOG(this << " SevenzipArchiveCmd unhandled item " << i << " " << Tcl_GetString(nameObj)
-                            << " prop " << SevenzipProperties[propId] << " type? " << propType);
-                        Tcl_DecrRefCount(nameObj);
+                        DEBUGLOG(this << " SevenzipArchiveCmd unhandled item " << i << " prop id " << propId << " type " << propType);
                     }
                 }
             }
             {
                 // append missing isdir property (compatibility with older versions)
-                Tcl_ListObjAppendElement(NULL, propObj, Tcl_NewStringObj("isdir", -1));
-                Tcl_ListObjAppendElement(NULL, propObj, Tcl_NewBooleanObj(archive.getItemIsDir(i)));
+                Tcl_ListObjAppendElement(NULL, prop, Tcl_NewStringObj("isdir", -1));
+                Tcl_ListObjAppendElement(NULL, prop, Tcl_NewBooleanObj(archive.getItemIsDir(i)));
             }
 
             // NOTE: above code may not list all properties (isdir,isanti,...?)
@@ -497,22 +552,22 @@ int SevenzipArchiveCmd::List(Tcl_Obj *list, Tcl_Obj *pattern, char type, int fla
             //     UInt32 uint32Value;
             //     UInt64 uint64Value;
             //     if (archive.getStringItemProperty(i, propId, stringValue) == S_OK) {
-            //         Tcl_ListObjAppendElement(NULL, propObj, Tcl_NewStringObj(SevenzipProperties[propId], -1));
-            //         Tcl_ListObjAppendElement(NULL, propObj, Tcl_NewStringObj(sevenzip::toBytes(stringValue), -1));
+            //         Tcl_ListObjAppendElement(NULL, prop, Tcl_NewStringObj(SevenzipProperties[propId], -1));
+            //         Tcl_ListObjAppendElement(NULL, prop, Tcl_NewStringObj(sevenzip::toBytes(stringValue), -1));
             //     } else if (archive.getBoolItemProperty(i, propId, boolValue) == S_OK) {
-            //         Tcl_ListObjAppendElement(NULL, propObj, Tcl_NewStringObj(SevenzipProperties[propId], -1));
-            //         Tcl_ListObjAppendElement(NULL, propObj, Tcl_NewBooleanObj(boolValue));
+            //         Tcl_ListObjAppendElement(NULL, prop, Tcl_NewStringObj(SevenzipProperties[propId], -1));
+            //         Tcl_ListObjAppendElement(NULL, prop, Tcl_NewBooleanObj(boolValue));
             //     } else if (archive.getIntItemProperty(i, propId, uint32Value) == S_OK) {
-            //         Tcl_ListObjAppendElement(NULL, propObj, Tcl_NewStringObj(SevenzipProperties[propId], -1));
-            //         Tcl_ListObjAppendElement(NULL, propObj, Tcl_NewIntObj(uint32Value));
+            //         Tcl_ListObjAppendElement(NULL, prop, Tcl_NewStringObj(SevenzipProperties[propId], -1));
+            //         Tcl_ListObjAppendElement(NULL, prop, Tcl_NewIntObj(uint32Value));
             //     } else if (archive.getWideItemProperty(i, propId, uint64Value) == S_OK) {
-            //         Tcl_ListObjAppendElement(NULL, propObj, Tcl_NewStringObj(SevenzipProperties[propId], -1));
-            //         Tcl_ListObjAppendElement(NULL, propObj, Tcl_NewWideIntObj(uint64Value));
+            //         Tcl_ListObjAppendElement(NULL, prop, Tcl_NewStringObj(SevenzipProperties[propId], -1));
+            //         Tcl_ListObjAppendElement(NULL, prop, Tcl_NewWideIntObj(uint64Value));
             //     } else {
             //         DEBUGLOG(this << "SevenzipArchiveCmd unhandled item " << i << " prop " << SevenzipProperties[propId]);
             //     }
             // }
-            Tcl_ListObjAppendElement(NULL, list, propObj);
+            Tcl_ListObjAppendElement(NULL, list, prop);
         } else {
             Tcl_ListObjAppendElement(NULL, list, Tcl_NewStringObj(path, -1));
         }

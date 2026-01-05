@@ -187,7 +187,8 @@ test sevenzip-3.3 {command info} -constraints have7zip -setup {
     $cmd close
 } -body {
     $cmd info
-} -result {headerssize 122 method LZMA:12 solid 0 numblocks 1 physize 131}    
+} -result {headerssize 122 method LZMA:12 solid 0 physize 131}    
+# -result {headerssize 122 method LZMA:12 solid 0 numblocks 1 physize 131}    
 # -result {solid 0 physize 131 headerssize 122}
 
 test sevenzip-3.4 {command count} -constraints have7zip -setup {

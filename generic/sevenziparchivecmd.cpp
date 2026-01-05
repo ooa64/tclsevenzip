@@ -353,23 +353,30 @@ int SevenzipArchiveCmd::Info(Tcl_Obj *info) {
             bool boolValue;
             UInt32 uint32Value;
             UInt64 uint64Value;
-            if (propId < sizeof(SevenzipProperties)/sizeof(SevenzipProperties[0]))
-                Tcl_ListObjAppendElement(NULL, info, Tcl_NewStringObj(SevenzipProperties[propId], -1));
-            else 
-                Tcl_ListObjAppendElement(NULL, info, Tcl_ObjPrintf("prop%d", propId));                
-            if (archive.getStringProperty(propId, stringValue) == S_OK)
+            Tcl_Obj *nameObj = propId < sizeof(SevenzipProperties)/sizeof(SevenzipProperties[0]) 
+                ? Tcl_NewStringObj(SevenzipProperties[propId], -1)
+                : Tcl_ObjPrintf("prop%d", propId);
+            if (archive.getStringProperty(propId, stringValue) == S_OK) {
+                Tcl_ListObjAppendElement(NULL, info, nameObj);
                 Tcl_ListObjAppendElement(NULL, info, Tcl_NewStringObj(sevenzip::toBytes(stringValue), -1));
-            else if (archive.getBoolProperty(propId, boolValue) == S_OK)
+            } else if (archive.getBoolProperty(propId, boolValue) == S_OK) {
+                Tcl_ListObjAppendElement(NULL, info, nameObj);
                 Tcl_ListObjAppendElement(NULL, info, Tcl_NewBooleanObj(boolValue));
-            else if (archive.getIntProperty(propId, uint32Value) == S_OK)
+            } else if (archive.getIntProperty(propId, uint32Value) == S_OK) {
+                Tcl_ListObjAppendElement(NULL, info, nameObj);
                 Tcl_ListObjAppendElement(NULL, info, Tcl_NewIntObj(uint32Value));
-            else if (archive.getWideProperty(propId, uint64Value) == S_OK)
+            } else if (archive.getWideProperty(propId, uint64Value) == S_OK) {
+                Tcl_ListObjAppendElement(NULL, info, nameObj);
                 Tcl_ListObjAppendElement(NULL, info, Tcl_NewWideIntObj(uint64Value));
-            else if (archive.getTimeProperty(propId, uint32Value) == S_OK)
+            } else if (archive.getTimeProperty(propId, uint32Value) == S_OK) {
+                Tcl_ListObjAppendElement(NULL, info, nameObj);
                 Tcl_ListObjAppendElement(NULL, info, Tcl_NewIntObj(uint32Value));
-            else
-                Tcl_ListObjAppendElement(NULL, info, Tcl_ObjPrintf("type%d", propType));
-       }
+            } else {
+                DEBUGLOG(this << " SevenzipArchiveCmd unhandled prop " << i << " " << Tcl_GetString(nameObj)
+                    << " prop " << SevenzipProperties[propId] << " type? " << propType);
+                Tcl_DecrRefCount(nameObj);
+            }
+        }
     }
     {
         // append missing physize property (compatibility with older versions)
@@ -447,7 +454,7 @@ int SevenzipArchiveCmd::List(Tcl_Obj *list, Tcl_Obj *pattern, char type, int fla
                         ? Tcl_NewStringObj(SevenzipProperties[propId], -1)
                         : Tcl_ObjPrintf("prop%d", propId);
 #ifdef _WIN32
-                    if (propId == kpidPath && archive.getStringItemProperty(i, propId, stringValue) == S_OK)
+                    if (propId == kpidPath && archive.getStringItemProperty(i, propId, stringValue) == S_OK) {
                         Tcl_ListObjAppendElement(NULL, propObj, nameObj);
                         Tcl_ListObjAppendElement(NULL, propObj, 
                                 Tcl_NewStringObj(Path_WindowsPathToUnixPath(sevenzip::toBytes(stringValue)), -1));
@@ -469,7 +476,9 @@ int SevenzipArchiveCmd::List(Tcl_Obj *list, Tcl_Obj *pattern, char type, int fla
                         Tcl_ListObjAppendElement(NULL, propObj, nameObj);
                         Tcl_ListObjAppendElement(NULL, propObj, Tcl_NewIntObj(uint32Value));
                     } else {
-                        DEBUGLOG(this << "SevenzipArchiveCmd unhandled item " << i << " prop " << SevenzipProperties[propId] << " type? " << propType);
+                        DEBUGLOG(this << " SevenzipArchiveCmd unhandled item " << i << " " << Tcl_GetString(nameObj)
+                            << " prop " << SevenzipProperties[propId] << " type? " << propType);
+                        Tcl_DecrRefCount(nameObj);
                     }
                 }
             }

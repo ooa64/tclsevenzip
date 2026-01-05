@@ -88,10 +88,10 @@ int TclCmd::Dispatch (ClientData clientData, Tcl_Interp * interp,
 
 #ifdef TCLCMD_DEBUG
   if (interp != o->tclInterp) {
-    DEBUGLOG("static TclCmd::Dispatch *" << o << " mismatched '" << \
+    DEBUGLOG("TclCmd::Dispatch *" << o << " mismatched '" << \
 	     Tcl_GetString(objv[0]) << " " << (objc > 1 ? Tcl_GetString(objv[1]) : "") << "'");
   } else {
-    DEBUGLOG("static TclCmd::Dispatch *" << o << " '" << \
+    DEBUGLOG("TclCmd::Dispatch *" << o << " '" << \
 	     Tcl_GetString(objv[0]) << " " << (objc > 1 ? Tcl_GetString(objv[1]) : "") << "'");
   }
 #endif
@@ -101,7 +101,7 @@ int TclCmd::Dispatch (ClientData clientData, Tcl_Interp * interp,
 void TclCmd::Destroy(ClientData clientData) {
   TclCmd *o = (TclCmd *) clientData;
 
-  DEBUGLOG("static TclCmd::Destroy *" << o);
+  DEBUGLOG("TclCmd::Destroy *" << o);
   if (o->IsNamed()) {
     o->Cleanup();
     o->Unname();

@@ -75,6 +75,9 @@ sevenzip::Istream *SevenzipInStream::Clone() const {
 
 bool SevenzipInStream::IsDir(const wchar_t* filename) const {
     DEBUGLOG(this << " SevenzipInStream::IsDir " << filename);
+    if (usechannel)
+        return false;
+    // TODO: implement directory checking
     return false;
 }
 
@@ -82,11 +85,17 @@ bool SevenzipInStream::IsDir(const wchar_t* filename) const {
 
 UInt32 SevenzipInStream::GetMode(const wchar_t *filename) const {
     DEBUGLOG(this << "  SevenzipInStream::GetMode " << filename);
+    if (usechannel)
+        return 0;
+    // TODO: implement mode retrieval
     return 0;
 }
 
 UInt32 SevenzipInStream::GetTime(const wchar_t *filename) const {
     DEBUGLOG(this << " SevenzipInStream::GetTime " << filename);
+    if (usechannel)
+        return 0;
+    // TODO: implement time retrieval
     return 0;
 }
 
@@ -187,17 +196,25 @@ void SevenzipOutStream::Close() {
 
 HRESULT SevenzipOutStream::Mkdir(const wchar_t* dirname) {
     DEBUGLOG(this << " SevenzipOutStream::Mkdir " << dirname);
+    if (usechannel)
+        return S_OK;
     return createDirectory(tclInterp,
             Tcl_NewStringObj(sevenzip::toBytes(dirname), -1)) ? S_OK : S_FALSE;
 }
 
 HRESULT SevenzipOutStream::SetMode(const wchar_t* path, UInt32 mode) {
     DEBUGLOG(this << " SevenzipOutStream::SetMode " << path << " " << std::oct << mode);
+    if (usechannel)
+        return S_OK;
+    // TODO: implement mode setting
     return S_FALSE;
 }
 
 HRESULT SevenzipOutStream::SetTime(const wchar_t* filename, UInt32 time) {
     DEBUGLOG(this << " SevenzipOutStream::SetTime " << filename << " " << time);
+    if (usechannel)
+        return S_OK;
+    // TODO: implement time setting
     return S_FALSE;
 }
 
@@ -281,4 +298,3 @@ Tcl_Channel getFileChannel(Tcl_Interp *tclInterp, Tcl_Obj *filename, bool writab
     Tcl_DecrRefCount(filename);
     return tclChannel;
 }
-

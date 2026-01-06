@@ -1,10 +1,10 @@
 #
 # using tclvfs/library/zipvfs.tcl as template
 #
-package provide vfs::sevenzip 0.2
+package provide vfs::sevenzip 0.3
 
 package require vfs [expr {$tcl_version < 9.0 ? "1.4-1.4.99" : "1.5-"}]
-package require sevenzip
+package require sevenzip 1
 
 namespace eval vfs::sevenzip {}
 
@@ -146,6 +146,9 @@ proc vfs::sevenzip::stat {zipfd name} {
     if {![info exists sb(ctime)] && [info exists sb(mtime)]} {
         set sb(ctime) $sb(mtime)
     }
+    if {![info exists sb(size)]} {
+        set sb(size) 0
+    }
     #::vfs::log [list res [array get sb]]
     array get sb
 }
@@ -175,10 +178,10 @@ proc vfs::sevenzip::open {zipfd name mode permissions} {
     switch -- $mode {
         "" -
         "r" {
-            if {[llength [$zipfd list -exact $name]] == 0} {
+            if {![Exists $zipfd $name]} {
                 vfs::filesystem posixerror $::vfs::posix(ENOENT)
             }
-            if {[llength [$zipfd list -type f -exact $name]] == 0} {
+            if {[DirExists $zipfd $name]} {
                 vfs::filesystem posixerror $::vfs::posix(EISDIR)
             }
             set nfd [vfs::memchan]

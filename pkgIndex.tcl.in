@@ -14,4 +14,4 @@ package ifneeded @PACKAGE_NAME@ @PACKAGE_VERSION@ [list ::apply {{dir} {
     }
 }} $dir]
 
-package ifneeded vfs::sevenzip 0.2 [list source [file join $dir sevenzipvfs.tcl]]
+package ifneeded vfs::sevenzip 0.3 [list source [file join $dir sevenzipvfs.tcl]]

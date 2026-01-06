@@ -415,14 +415,15 @@ int SevenzipArchiveCmd::Info(Tcl_Obj *info) {
             }
         }
     }
-    {
-        // append missing physize property (compatibility with older versions)
-        UInt64 uint64Value;
-        if (archive.getWideProperty(kpidPhySize, uint64Value) == S_OK) {
-            Tcl_ListObjAppendElement(NULL, info, Tcl_NewStringObj("physize", -1));
-            Tcl_ListObjAppendElement(NULL, info, Tcl_NewWideIntObj(uint64Value));
-        }
-    }
+    // NOTE: compatibility with older versions. dont think this is needed anymore
+    // {
+    //     // append missing physize property
+    //     UInt64 uint64Value;
+    //     if (archive.getWideProperty(kpidPhySize, uint64Value) == S_OK) {
+    //         Tcl_ListObjAppendElement(NULL, info, Tcl_NewStringObj("physize", -1));
+    //         Tcl_ListObjAppendElement(NULL, info, Tcl_NewWideIntObj(uint64Value));
+    //     }
+    // }
     //
     // NOTE: above code may not list all properties (physize,errorflags,...?) or have another type (numblocks)
     // NOTE: There is an alternative way to get all properties
@@ -478,6 +479,7 @@ int SevenzipArchiveCmd::List(Tcl_Obj *list, Tcl_Obj *pattern, char type, int fla
         }
         if (info) {
             Tcl_Obj *prop = Tcl_NewObj();
+            bool haveIsDirProperty = false;
             int n = archive.getNumberOfItemProperties();
             for (int j = 0; j < n; j++) {
                 PROPID propId;
@@ -535,10 +537,12 @@ int SevenzipArchiveCmd::List(Tcl_Obj *list, Tcl_Obj *pattern, char type, int fla
                     } else {
                         DEBUGLOG(this << " SevenzipArchiveCmd unhandled item " << i << " prop id " << propId << " type " << propType);
                     }
+                    if (propId == kpidIsDir)
+                        haveIsDirProperty = true;
                 }
             }
-            {
-                // append missing isdir property (compatibility with older versions)
+            if (!haveIsDirProperty) {
+                // append missing but useful isdir property
                 Tcl_ListObjAppendElement(NULL, prop, Tcl_NewStringObj("isdir", -1));
                 Tcl_ListObjAppendElement(NULL, prop, Tcl_NewBooleanObj(archive.getItemIsDir(i)));
             }

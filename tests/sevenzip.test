@@ -187,9 +187,18 @@ test sevenzip-3.3 {command info} -constraints have7zip -setup {
     $cmd close
 } -body {
     $cmd info
-} -result {headerssize 122 method LZMA:12 solid 0 physize 131}    
+} -result {headerssize 122 method LZMA:12 solid 0}
+# -result {headerssize 122 method LZMA:12 solid 0 physize 131}    
 # -result {headerssize 122 method LZMA:12 solid 0 numblocks 1 physize 131}    
 # -result {solid 0 physize 131 headerssize 122}
+
+test sevenzip-3.3.1 {command info (tar)} -constraints have7zip -setup {
+    set cmd [sevenzip open [file join [testsDirectory] files test.tar]]
+} -cleanup {
+    $cmd close
+} -body {
+    $cmd info
+} -result {headerssize 1536 codepage UTF-8 characts {POSIX ASCII}}
 
 test sevenzip-3.4 {command count} -constraints have7zip -setup {
     set cmd [sevenzip open [file join [testsDirectory] files test.7z]]
@@ -324,6 +333,14 @@ test sevenzip-4.10 {detailed list} -constraints have7zip -setup {
     $cmd close
 } -result {{path test.txt size 4 packsize 9 mtime 1759752741 attrib 33 crc -662733300 encrypted 0 method LZMA:12 block 0 isdir 0}}
 # -result {{packsize 9 attrib 33 mtime 1759752741 encrypted 0 path test.txt isdir 0 size 4}}
+
+test sevenzip-4.10.1 {detailed list (tar), check for duplicated isdir} -constraints have7zip -setup {
+    set cmd [sevenzip open [file join [testsDirectory] files test.tar]]
+} -body {
+    $cmd list -info
+} -cleanup {
+    $cmd close
+} -result {{path test.txt isdir 0 size 4 packsize 512 mtime 1759752741 posixattrib 33060 userid 0 groupid 0 characts {0 POSIX ASCII} devicemajor 0 deviceminor 0}}
 
 test sevenzip-4.11 {complex list} -constraints have7zip -setup {
     set cmd [sevenzip open [file join [testsDirectory] files testDIRS.7z]]

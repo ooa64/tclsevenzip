@@ -234,6 +234,54 @@ test sevenzipvfs-2.1.invalidTimeBug {invalidTimeBug} -constraints {have7zip inva
     file isfile mnt/!_Columns
 } -result {1}
 
+test sevenzipvfs-2.2.1.dotPrefixBug {dotPrefixBug root} -constraints {have7zip dotPrefixBug} -setup {
+    set mnt [vfs::sevenzip::Mount [file join [testsDirectory] files testDIRSDOT.tar] mnt]
+} -cleanup {
+    vfs::sevenzip::Unmount $mnt mnt; unset mnt
+} -body {
+    glob mnt/*
+} -result {mnt/testDIRS}
+
+test sevenzipvfs-2.2.2.dotPrefixBug {dotPrefixBug under root} -constraints {have7zip dotPrefixBug} -setup {
+    set mnt [vfs::sevenzip::Mount [file join [testsDirectory] files testDIRSDOT.tar] mnt]
+} -cleanup {
+    vfs::sevenzip::Unmount $mnt mnt; unset mnt
+} -body {
+    glob mnt/testDIRS/*
+} -result {mnt/testDIRS/test1 mnt/testDIRS/test2 mnt/testDIRS/test3 mnt/testDIRS/test4.txt mnt/testDIRS/test5.txt mnt/testDIRS/test6.txt}
+
+test sevenzipvfs-2.2.3.dotPrefixBug {dotPrefixBug dir} -constraints {have7zip dotPrefixBug} -setup {
+    set mnt [vfs::sevenzip::Mount [file join [testsDirectory] files testDIRSDOT.tar] mnt]
+} -cleanup {
+    vfs::sevenzip::Unmount $mnt mnt; unset mnt
+} -body {
+    glob mnt/testDIRS/test1
+} -result {mnt/testDIRS/test1}
+
+test sevenzipvfs-2.2.4.dotPrefixBug {dotPrefixBug file} -constraints {have7zip dotPrefixBug} -setup {
+    set mnt [vfs::sevenzip::Mount [file join [testsDirectory] files testDIRSDOT.tar] mnt]
+} -cleanup {
+    vfs::sevenzip::Unmount $mnt mnt; unset mnt
+} -body {
+    glob mnt/testDIRS/test4.txt
+} -result {mnt/testDIRS/test4.txt}
+
+test sevenzipvfs-2.2.5.dotPrefixBug {dotPrefixBug file size (stat)} -constraints {have7zip dotPrefixBug} -setup {
+    set mnt [vfs::sevenzip::Mount [file join [testsDirectory] files testDIRSDOT.tar] mnt]
+} -cleanup {
+    vfs::sevenzip::Unmount $mnt mnt; unset mnt
+} -body {
+    file size mnt/testDIRS/test4.txt
+} -result {mnt/testDIRS/test4.txt}
+
+test sevenzipvfs-2.2.6.dotPrefixBug {dotPrefixBug file read (extract)} -constraints {have7zip dotPrefixBug} -setup {
+    set mnt [vfs::sevenzip::Mount [file join [testsDirectory] files testDIRSDOT.tar] mnt]
+} -cleanup {
+    vfs::sevenzip::Unmount $mnt mnt; unset mnt
+} -body {
+    readFile mnt/testDIRS/test4.txt
+} -result {test4}
+
 
 cleanupTests
 return

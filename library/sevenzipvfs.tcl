@@ -254,6 +254,8 @@ proc vfs::sevenzip::utime {fd path actime mtime} {
 #         file4 
 #     subdir2
 #
+# BUG! Doesnt not work properly when the archive contains items with a dot, such as "./dir" or "dir/../dir".
+#
 
 interp alias {} vfs::sevenzip::Startup {} vfs::sevenzip::CacheCreate
 interp alias {} vfs::sevenzip::Cleanup {} vfs::sevenzip::CacheClear

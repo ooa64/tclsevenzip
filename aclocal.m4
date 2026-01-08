@@ -49,41 +49,25 @@ AC_DEFUN([TCLSEVENZIP_CHECK_SEVENZIP], [
             AC_MSG_RESULT([skip])
     fi
 
-    AC_MSG_CHECKING([for sevenzip/libsevenzip.a])
+    AC_MSG_CHECKING([for C/7zTypes.h])
     if test "$sevenzipdir" != "no"; then
-        if test -f "$sevenzipdir/libsevenzip.a"; then
+        if test -f "$sevenzipdir/C/7zTypes.h"; then
             AC_MSG_RESULT([ok])
         else
             AC_MSG_RESULT([fail])
-            AC_MSG_ERROR([Unable to locate sevenzip/libsevenzip.a])
+            AC_MSG_ERROR([Unable to locate C/7zTypes.h])
         fi
     else
             AC_MSG_RESULT([skip])
     fi
 
-    AC_MSG_CHECKING([for 7zip source directory])
-    AC_ARG_WITH([7zip],
-        AS_HELP_STRING([--with-7zip=<dir>],
-            [path to the 7zip source directory]
-        ), [
-            src7zipdir="$withval"
-        ], [
-            if test "$sevenzipdir" != "no"; then
-                src7zipdir="$sevenzipdir/externals/7zip"
-            else
-                src7zipdir="no"
-            fi
-        ]
-    )
-    AC_MSG_RESULT([$src7zipdir])
-
-    AC_MSG_CHECKING([for 7zip/C/7zVersion.h])
-    if test "$src7zipdir" != "no"; then
-        if test -f "$src7zipdir/C/7zVersion.h"; then
+    AC_MSG_CHECKING([for libsevenzip.a])
+    if test "$sevenzipdir" != "no"; then
+        if test -f "$sevenzipdir/libsevenzip.a"; then
             AC_MSG_RESULT([ok])
         else
             AC_MSG_RESULT([fail])
-            AC_MSG_ERROR([Unable to locate 7zip/C/7zVersion.h])
+            AC_MSG_ERROR([Unable to locate libsevenzip.a])
         fi
     else
             AC_MSG_RESULT([skip])
@@ -95,8 +79,7 @@ AC_DEFUN([TCLSEVENZIP_CHECK_SEVENZIP], [
     if test "$sevenzipdir" != "no"; then
         TEA_ADD_LIBS([-L"$sevenzipdir" -lsevenzip])
     fi
-    if test "$src7zipdir" != "no"; then
-        TEA_ADD_INCLUDES([-I\"`${CYGPATH} $src7zipdir`\"])
-        AC_SUBST(src7zipdir)
-    fi
+
+	SEVENZIP=$sevenzipdir
+    AC_SUBST(SEVENZIP)
 ])

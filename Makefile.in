@@ -18,16 +18,7 @@
 #========================================================================
 
 CFLAGS_DEBUGLOG = @CFLAGS_DEBUGLOG@ 
-
-ifeq ($(CFLAGS_DEBUGLOG),)
-MFLAGS_7ZIP =
-out7zipdir = sevenzip-release
-else
-MFLAGS_7ZIP = DEBUG_BUILD=1
-out7zipdir = sevenzip-debug
-endif
-src7zipdir = @src7zipdir@
-dll7zip = 7z.so
+SEVENZIP = @SEVENZIP@ 
 
 #========================================================================
 # Nothing of the variables below this line should need to be changed.
@@ -256,10 +247,9 @@ install-doc: doc
 	    $(INSTALL_DATA) $$i "$(DESTDIR)$(mandir)/mann" ; \
 	done
 
-test: binaries libraries
-	$(TCLSH) `@CYGPATH@ $(srcdir)/tests/all.tcl` $(TESTFLAGS) \
-	    -load "package ifneeded $(PACKAGE_NAME) $(PACKAGE_VERSION) \
-		[list load `@CYGPATH@ $(PKG_LIB_FILE)` [string totitle $(PACKAGE_NAME)]]"
+test: binaries libraries pkgIndex.tcl
+	cp library/sevenzipvfs.tcl ./
+	$(TCLSH) `@CYGPATH@ $(srcdir)/tests/all.tcl` $(TESTFLAGS)
 
 shell: binaries libraries
 	@$(TCLSH) $(SCRIPT)
@@ -267,12 +257,11 @@ shell: binaries libraries
 gdb:
 	$(TCLSH_ENV) $(PKG_ENV) $(GDB) $(TCLSH_PROG) $(SCRIPT)
 
-gdb-test: binaries libraries
+gdb-test: binaries libraries pkgIndex.tcl
+	cp library/sevenzipvfs.tcl ./
 	$(TCLSH_ENV) $(PKG_ENV) $(GDB) \
 	    --args $(TCLSH_PROG) `@CYGPATH@ $(srcdir)/tests/all.tcl` \
-	    $(TESTFLAGS) -singleproc 1 \
-	    -load "package ifneeded $(PACKAGE_NAME) $(PACKAGE_VERSION) \
-		[list load `@CYGPATH@ $(PKG_LIB_FILE)` [string totitle $(PACKAGE_NAME)]]"
+	    $(TESTFLAGS) -singleproc 1
 
 valgrind: binaries libraries
 	$(TCLSH_ENV) $(PKG_ENV) $(VALGRIND) $(VALGRINDARGS) $(TCLSH_PROG) \
@@ -326,29 +315,11 @@ VPATH = $(srcdir):$(srcdir)/generic:$(srcdir)/unix:$(srcdir)/win:$(srcdir)/macos
 .cpp.@OBJEXT@:
 	$(COMPILE) -c `@CYGPATH@ $<` -o $@
 
-sevenzip.@OBJEXT@:	tclsevenzipUuid.h
-
-$(srcdir)/manifest.uuid:
-	printf "git-" >$(srcdir)/manifest.uuid
-	(cd $(srcdir); git rev-parse HEAD >>$(srcdir)/manifest.uuid || \
-	    (printf "svn-r" >$(srcdir)/manifest.uuid ; \
-	    svn info --show-item last-changed-revision >>$(srcdir)/manifest.uuid) || \
-	    printf "unknown" >$(srcdir)/manifest.uuid)
-
-tclsevenzipUuid.h:	$(srcdir)/manifest.uuid
-	echo "#define SEVENZIP_VERSION_UUID \\" >$@
-	cat $(srcdir)/manifest.uuid >>$@
-	echo "" >>$@
-
-tclsevenzip.o: tclsevenzip.cpp sevenzipcmd.hpp tclcmd.hpp tclsevenzipUuid.h
-sevenzipcmd.o: sevenzipcmd.cpp sevenzipcmd.hpp tclcmd.hpp
-sevenziparchivecmd.o: sevenziparchivecmd.cpp sevenziparchivecmd.hpp tclcmd.hpp
+tclsevenzip.o: tclsevenzip.cpp sevenzipcmd.hpp tclcmd.hpp
+sevenzipcmd.o: sevenzipcmd.cpp sevenzipcmd.hpp sevenzipstream.hpp tclcmd.hpp
+sevenziparchivecmd.o: sevenziparchivecmd.cpp sevenziparchivecmd.hpp sevenzipstream.hpp tclcmd.hpp
 sevenzipstream.o: sevenzipstream.cpp sevenzipstream.hpp
 tclcmd.o: tclcmd.hpp 
-
-$(srcdir)/$(dll7zip):
-	(cd $(src7zipdir)/CPP/7zip/Bundles/Format7zF && make -f makefile.gcc $(MFLAGS_7ZIP) O=$(out7zipdir))
-	cp $(src7zipdir)/CPP/7zip/Bundles/Format7zF/$(out7zipdir)/$(dll7zip) $@
 
 #========================================================================
 # Distribution creation
@@ -410,16 +381,15 @@ dist: dist-clean $(srcdir)/manifest.uuid
 #========================================================================
 
 clean:
+	-test -z sevenzipvfs.tcl || rm -f sevenzipvfs.tcl
 	-test -z "$(BINARIES)" || rm -f $(BINARIES)
 	-rm -f *.$(OBJEXT) core *.core
 	-test -z "$(CLEANFILES)" || rm -f $(CLEANFILES)
-	-rm -f $(srcdir)/$(dll7zip)
 
 distclean: clean
 	-rm -f *.tab.c
 	-rm -f $(CONFIG_CLEAN_FILES)
 	-rm -f config.cache config.log config.status
-	-rm -fr $(src7zipdir)/CPP/7zip/Bundles/Format7zF/$(out7zipdir)
 
 #========================================================================
 # Install binary object libraries.  On Windows this includes both .dll and
@@ -459,7 +429,8 @@ install-lib-binaries: binaries
 	    echo " Install pkgIndex.tcl $(DESTDIR)$(pkglibdir)"; \
 	    $(INSTALL_DATA) pkgIndex.tcl "$(DESTDIR)$(pkglibdir)"; \
 	fi
-	-$(INSTALL_LIBRARY) $(srcdir)/$(dll7zip) "$(DESTDIR)$(pkglibdir)"
+	-$(INSTALL_LIBRARY) $(SEVENZIP)/7z.so "$(DESTDIR)$(pkglibdir)"
+	-$(INSTALL_LIBRARY) $(SEVENZIP)/7z_addon_codec "$(DESTDIR)$(pkglibdir)"
 
 #========================================================================
 # Install binary executables (e.g. .exe files and dependent .dll files)

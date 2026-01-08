@@ -23,10 +23,6 @@ PROJECT = sevenzip
 SEVENZIP=..\..\libsevenzip
 !endif
 
-!ifndef 7ZIP
-7ZIP=$(SEVENZIP)\externals\7zip
-!endif
-
 !include "rules-ext.vc"
 
 # Define the object files and resource file that make up the extension.
@@ -47,7 +43,7 @@ PRJ_DEFINES = $(PRJ_DEFINES) -I$(TMP_DIR)
 PRJ_DEFINES = $(PRJ_DEFINES) -DTcl_Size=int
 !endif
 
-PRJ_INCLUDES = -I$(SEVENZIP) -I$(7ZIP)
+PRJ_INCLUDES = -I$(SEVENZIP)
 
 !if $(DEBUG)
 PRJ_LIBS = -LIBPATH:$(SEVENZIP) sevenzipd.lib 
@@ -64,32 +60,21 @@ PRJ_LIBS = $(PRJ_LIBS) User32.lib OleAut32.lib
 # default-pkgindex target for our sample extension.
 pkgindex: default-pkgindex-tea
 
-$(ROOT)\manifest.uuid:
-   copy $(WIN_DIR)\gitmanifest.in $(ROOT)\manifest.uuid
-   git rev-parse HEAD >>$(ROOT)\manifest.uuid
-
-$(TMP_DIR)\tclsevenzipUuid.h:	$(ROOT)\manifest.uuid
-	copy $(WIN_DIR)\tclsevenzipUuid.h.in+$(ROOT)\manifest.uuid $(TMP_DIR)\tclsevenzipUuid.h
-
-7z.dll: $(OUT_DIR)\7z.dll
-$(OUT_DIR)\7z.dll:
-	cd $(7ZIP)\CPP\7zip\Bundles\Format7zF && nmake O=sevenzip CFLAGS="" CPPFLAGS=""
-	copy $(7ZIP)\CPP\7zip\Bundles\Format7zF\sevenzip\7z.dll $@ 
-
 # The default install target only installs binaries and scripts so add
 # an additional target for our documentation. Note this *adds* a target
 # since no commands are listed after it. The original targets for
 # install (from targets.vc) will remain.
 install: default-install-docs-n
 	-@$(CPY) "$(DOCDIR)\*.md" "$(DOC_INSTALL_DIR)"
-	-@$(CPY) "$(OUT_DIR)\7z.dll" "$(LIB_INSTALL_DIR)"
+	-@$(CPY) "$(SEVENZIP)\7z.dll" "$(LIB_INSTALL_DIR)"
+	-@$(CPY) "$(SEVENZIP)\7z_addon_codec" "$(LIB_INSTALL_DIR)"
 
 # Explicit dependency rules
-$(GENERICDIR)\tclsevenzip.cpp : $(GENERICDIR)\sevenzipcmd.hpp $(GENERICDIR)\tclcmd.hpp $(TMP_DIR)\tclsevenzipUuid.h
+$(GENERICDIR)\tclsevenzip.cpp : $(GENERICDIR)\sevenzipcmd.hpp $(GENERICDIR)\tclcmd.hpp
 
-$(GENERICDIR)\sevenzipcmd.cpp : $(GENERICDIR)\sevenzipcmd.hpp $(GENERICDIR)\tclcmd.hpp
+$(GENERICDIR)\sevenzipcmd.cpp : $(GENERICDIR)\sevenzipcmd.hpp $(GENERICDIR)\sevenziparchivecmd.hpp $(GENERICDIR)\sevenzipstream.hpp $(GENERICDIR)\tclcmd.hpp
 
-$(GENERICDIR)\sevenziparchivecmd.cpp : $(GENERICDIR)\sevenziparchivecmd.hpp $(GENERICDIR)\tclcmd.hpp
+$(GENERICDIR)\sevenziparchivecmd.cpp : $(GENERICDIR)\sevenziparchivecmd.hpp $(GENERICDIR)\sevenzipstream.hpp $(GENERICDIR)\tclcmd.hpp
 
 $(GENERICDIR)\sevenzipstream.cpp : $(GENERICDIR)\sevenzipstream.hpp
 

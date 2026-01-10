@@ -19,7 +19,7 @@ public:
     virtual sevenzip::Istream* Clone() const override;
     
     virtual bool IsDir(const wchar_t *filename) const override;
-    //virtual UInt64 GetSize(const wchar_t *filename) const override;
+    virtual UInt64 GetSize(const wchar_t *filename) const override;
     virtual UInt32 GetMode(const wchar_t *filename) const override;
     virtual UInt32 GetTime(const wchar_t *filename) const override;
 
@@ -44,10 +44,10 @@ public:
     virtual HRESULT Open(const wchar_t *filename) override;
     virtual HRESULT Write(const void *data, UInt32 size, UInt32 &processedSize) override;
     virtual HRESULT Seek(Int64 offset, UInt32 seekOrigin, UInt64 &newPosition) override;
-    // virtual HRESULT SetSize(UInt64 size) override;
     virtual void Close() override;
 
     virtual HRESULT Mkdir(const wchar_t* dirname) override;
+    // virtual HRESULT SetSize(UInt64 size) override;
     virtual HRESULT SetMode(const wchar_t* path, UInt32 mode) override;
     virtual HRESULT SetTime(const wchar_t* filename, UInt32 time) override;
 

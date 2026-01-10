@@ -81,7 +81,13 @@ bool SevenzipInStream::IsDir(const wchar_t* filename) const {
     return false;
 }
 
-//UInt64 GetSize(const wchar_t* /*filename*/) const {}
+UInt64 SevenzipInStream::GetSize(const wchar_t* filename) const {
+    DEBUGLOG(this << " SevenzipInStream::GetSize " << filename);
+    if (usechannel)
+        return 0;
+    // TODO: implement size retrieval
+    return 0;
+}
 
 UInt32 SevenzipInStream::GetMode(const wchar_t *filename) const {
     DEBUGLOG(this << "  SevenzipInStream::GetMode " << filename);

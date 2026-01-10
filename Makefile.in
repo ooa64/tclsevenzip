@@ -17,8 +17,8 @@
 # have been added in a customized configure script.
 #========================================================================
 
-CFLAGS_DEBUGLOG = @CFLAGS_DEBUGLOG@ 
-SEVENZIP = @SEVENZIP@ 
+CFLAGS_DEBUGLOG = @CFLAGS_DEBUGLOG@
+SEVENZIP = @SEVENZIP@
 
 #========================================================================
 # Nothing of the variables below this line should need to be changed.
@@ -130,7 +130,7 @@ TCL_SRC_DIR	= @TCL_SRC_DIR@
 # require for testing here (like TCLX_LIBRARY).
 #========================================================================
 
-EXTRA_PATH	= $(top_builddir):$(TCL_BIN_DIR)
+EXTRA_PATH	= $(top_builddir):$(TCL_BIN_DIR):$(SEVENZIP)
 #EXTRA_PATH	= $(top_builddir):$(TCL_BIN_DIR):$(TK_BIN_DIR)
 TCLLIBPATH	= $(top_builddir)
 TCLSH_ENV	= TCL_LIBRARY=`@CYGPATH@ $(TCL_SRC_DIR)/library`

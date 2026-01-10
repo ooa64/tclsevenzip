@@ -1,4 +1,5 @@
-create streams as callbacks members?
-create command with properties
+implement get/set size/mode/time, tests
+streams should be owned by callbacks as members?
+new command to create archives (with properties)
 progress callbacks
 unload 7z library

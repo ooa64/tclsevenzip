@@ -3,6 +3,9 @@ implement get/set size/mode/time with tests
 add syntax to extract all:
 	handle extract ?destination?
 
+add directory option to list to limit output:
+	handle list -directory path
+
 add command to create archives:
 	sevenzip create ?-properties proplist? ?-forcetype type? ?-password password? ?-channel? pathOrChannel {}
 

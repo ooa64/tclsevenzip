@@ -6,9 +6,6 @@ add syntax to extract all:
 add directory option to list to limit output:
 	handle list -directory path
 
-add command to create archives:
-	sevenzip create ?-properties proplist? ?-forcetype type? ?-password password? ?-channel? pathOrChannel {}
-
 progress callbacks:
 	sevenzip open ?-callback script? ...
 	handle extract ?-callback script? ...

@@ -12,10 +12,10 @@
 
 int SevenzipCmd::Command (int objc, Tcl_Obj *const objv[]) {
     static const char *const commands[] = {
-        "initialize", "isinitialized", "extensions", "open", 0L
+        "initialize", "isinitialized", "extensions", "updatable", "open", "create", 0L
     };
     enum commands {
-        cmInitialize, cmIsInitialized, cmExtensions, cmOpen
+        cmInitialize, cmIsInitialized, cmExtensions, cmUpdatable, cmOpen, cmCreate
     };
     int index;
 
@@ -62,6 +62,23 @@ int SevenzipCmd::Command (int objc, Tcl_Obj *const objv[]) {
             }
         } else {
             Tcl_WrongNumArgs(tclInterp, 2, objv, NULL);
+            return TCL_ERROR;
+        } 
+
+        break;
+
+    case cmUpdatable:
+
+        if (objc == 3) {
+            if (!lib.isLoaded() && (Initialize(NULL) != TCL_OK))
+                return TCL_ERROR;
+            int type = lib.getFormatByExtension(
+                    sevenzip::fromBytes(Tcl_GetString(objv[2])));
+            if (type < 0)
+                return lastError(tclInterp, E_NOTSUPPORTED);
+            Tcl_SetObjResult(tclInterp, Tcl_NewBooleanObj(lib.getFormatUpdatable(type)));
+        } else {
+            Tcl_WrongNumArgs(tclInterp, 2, objv, "type");
             return TCL_ERROR;
         } 
 
@@ -141,12 +158,89 @@ int SevenzipCmd::Command (int objc, Tcl_Obj *const objv[]) {
             auto command = Tcl_ObjPrintf("sevenzip%lu", archiveCounter++);
             return OpenArchive(command, objv[objc-1], password, type, usechannel);
         } else {
-            Tcl_WrongNumArgs(tclInterp, 2, objv, "?options? filename");
+            Tcl_WrongNumArgs(tclInterp, 2, objv, "?options? path");
             return TCL_ERROR;
         }
 
         break;
 
+    case cmCreate:
+
+        // create ?-properties proplist? ?-forcetype type? ?-password password? ?-channel? chan | filename files
+        if (objc > 3) {
+            static const char *const options[] = {
+                "-properties", "-forcetype", "-password", "-channel", 0L
+            };
+            enum options {
+                opProperties, opForcetype, opPassword, opChannel
+            };
+            int index;
+            bool usechannel = false;
+            Tcl_Obj *properties = NULL;
+            Tcl_Obj *password = NULL;
+            Tcl_Obj *forcetype = NULL;
+            for (int i = 2; i < objc - 2; i++) {
+                if (Tcl_GetIndexFromObj(tclInterp, objv[i], options, "option", 0, &index) != TCL_OK) {
+                    return TCL_ERROR;
+                }
+                switch ((enum options)(index)) {
+                case opProperties:
+                    if (i < objc - 3) {
+                        properties = objv[++i];
+                        int length;
+                        if (Tcl_ListObjLength(tclInterp, properties, &length) != TCL_OK)
+                            return TCL_ERROR;
+                        if (length % 2 != 0) {
+                            Tcl_SetObjResult(tclInterp, Tcl_NewStringObj(
+                                "\"-properties\" option must be followed by an even-length list", -1));
+                            return TCL_ERROR;
+                        }
+                    } else {
+                        Tcl_SetObjResult(tclInterp, Tcl_NewStringObj(
+                            "\"-properties\" option must be followed by property dictionary", -1));
+                        return TCL_ERROR;
+                    }
+                    break;
+                case opForcetype:
+                    if (i < objc - 3) {
+                        forcetype = objv[++i];
+                    } else {
+                        Tcl_SetObjResult(tclInterp, Tcl_NewStringObj(
+                            "\"-forcetype\" option must be followed by type", -1));
+                        return TCL_ERROR;
+                    }
+                    break;
+                case opPassword:
+                    if (i < objc - 3) {
+                        password = objv[++i];
+                    } else {
+                        Tcl_SetObjResult(tclInterp, Tcl_NewStringObj(
+                            "\"-password\" option must be followed by password", -1));
+                        return TCL_ERROR;
+                    }
+                    break;
+                case opChannel:
+                    usechannel = true;
+                    break;
+                }
+            }
+
+            if (!lib.isLoaded() && (Initialize(NULL) != TCL_OK))
+                return TCL_ERROR;
+
+            int type = -1;
+            if (forcetype) {
+                type = lib.getFormatByExtension(sevenzip::fromBytes(Tcl_GetString(forcetype)));
+                if (type < 0)
+                    return lastError(tclInterp, E_NOTSUPPORTED);
+            }
+            return CreateArchive(objv[objc-1], objv[objc-2], password, type, usechannel, properties);
+        } else {
+            Tcl_WrongNumArgs(tclInterp, 2, objv, "?options? path list");
+            return TCL_ERROR;
+        }
+
+        break;
     }
 
     return TCL_OK;
@@ -207,3 +301,54 @@ int SevenzipCmd::OpenArchive(Tcl_Obj *command, Tcl_Obj *source,
     Tcl_SetObjResult(tclInterp, command);
     return TCL_OK;
 }
+
+int SevenzipCmd::CreateArchive(Tcl_Obj *pathnames, Tcl_Obj *destination,
+        Tcl_Obj *password, int type, bool usechannel, Tcl_Obj *properties) {
+    sevenzip::Oarchive archive;
+    SevenzipInStream istream(tclInterp);
+    SevenzipOutStream ostream(tclInterp);
+    HRESULT hr = S_OK;
+    if (usechannel)
+        hr = ostream.AttachOpenChannel(destination);
+    if (hr == S_OK)
+        hr = archive.open(lib, istream, ostream,
+                usechannel ? NULL : sevenzip::fromBytes(Tcl_GetString(destination)),
+                password ? sevenzip::fromBytes(Tcl_GetString(password)) : NULL,
+                type);
+    if (hr == S_OK && properties) {
+        int length;
+        if (Tcl_ListObjLength(tclInterp, properties, &length) != TCL_OK)
+            return TCL_ERROR;
+        for (int i = 0; i < length; i += 2) {
+            Tcl_Obj *key;
+            Tcl_Obj *value;
+            if (Tcl_ListObjIndex(tclInterp, properties, i, &key) != TCL_OK)
+                return TCL_ERROR;
+            if (Tcl_ListObjIndex(tclInterp, properties, i + 1, &value) != TCL_OK)
+                return TCL_ERROR;
+            // FIXME: properties are typed, need to set correct type here
+            hr = archive.setStringProperty(
+                    sevenzip::fromBytes(Tcl_GetString(key)),
+                    sevenzip::fromBytes(Tcl_GetString(value)));
+        }
+    }
+    if (hr == S_OK) {
+        int length;
+        if (Tcl_ListObjLength(tclInterp, pathnames, &length) != TCL_OK)
+            return TCL_ERROR;
+        for (int i = 0; i < length; i++) {
+            Tcl_Obj *item;
+            if (Tcl_ListObjIndex(tclInterp, pathnames, i, &item) != TCL_OK)
+                return TCL_ERROR;
+            archive.addItem(sevenzip::fromBytes(Tcl_GetString(item)));
+        }
+    }
+    if (hr == S_OK)
+        hr = archive.update();
+    if (!usechannel)
+        Tcl_Close(tclInterp, ostream.DetachChannel());
+    if (hr != S_OK)
+        return lastError(tclInterp, hr);
+    return TCL_OK;
+}
+

@@ -8,6 +8,8 @@ place 7z.dll in PATH (windows) or 7z.so in LD_LIBRARY_PATH (unix)
 	sevenzip isinitialized
 	sevenzip extensions
 	sevenzip open ?-multivolume? ?-detecttype | -forcetype type? ?-password password? ?-channel? pathOrChannel
+	sevenzip create ?-properties proplist? ?-forcetype type? ?-password password? ?-channel? pathOrChannel filesList
+
 
 *sevenzip open* returns archive *handle*:
 

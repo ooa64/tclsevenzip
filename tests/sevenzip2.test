@@ -1,0 +1,123 @@
+if {[lsearch [namespace children] ::tcltest] < 0} {
+    package require tcltest 2
+    namespace import ::tcltest::*
+}
+
+
+package require sevenzip 1
+catch {
+    if {[info exist env(7ZDLL)]} {
+        sevenzip initialize $env(7ZDLL)
+    } else {
+        sevenzip initialize            
+    }
+}
+
+if {[info proc readFile] eq ""} {
+    proc readFile {filename} {
+        set f [open $filename "r"]
+        try {
+            fconfigure $f -encoding utf-8
+            return [read $f]
+        } finally {
+            close $f
+        }
+    }
+}
+
+if {[info proc writeFile] eq ""} {
+    proc writeFile {filename data} {
+        set f [open $filename "w"]
+        try {
+            fconfigure $f -encoding utf-8
+            puts -nonewline $f $data
+        } finally {
+            close $f
+        }
+    }
+}
+
+testConstraint have7zip [sevenzip isinitialized]
+testConstraint haveMemchan [expr {![catch {package require tcl::chan::memchan}]}]
+testConstraint encodingOk [expr {"тест" eq "\u0442\u0435\u0441\u0442"}]
+
+if {[testConstraint have7zip]} {
+    foreach e {7z zip rar tar arj} {
+        testConstraint supported.$e [expr {$e in [sevenzip extensions]}]
+    }
+}
+
+
+test sevenzip2-1.0 {create syntax} -body {
+    sevenzip create
+} -returnCodes 1 -result {wrong # args: should be "sevenzip create ?options? path list"}
+
+test sevenzip2-1.1 {create syntax} -body {
+    sevenzip create xxx
+} -returnCodes 1 -result {wrong # args: should be "sevenzip create ?options? path list"}
+
+test sevenzip2-1.2 {create syntax}  -body {
+    sevenzip create xxx xxx {}
+} -returnCodes 1 -result {bad option "xxx": must be -properties, -forcetype, -password, or -channel}
+
+test sevenzip2-1.3 {create syntax}  -body {
+    sevenzip create -properties xxx {}
+} -returnCodes 1 -result {"-properties" option must be followed by property dictionary}
+
+test sevenzip2-1.4 {create syntax}  -body {
+    sevenzip create -properties {xxx} xxx {}
+} -returnCodes 1 -result {"-properties" option must be followed by an even-length list}
+
+test sevenzip2-1.5 {create syntax}  -body {
+    sevenzip create -forcetype xxx {}
+} -returnCodes 1 -result {"-forcetype" option must be followed by type}
+
+test sevenzip2-1.6 {create syntax} -body {
+    sevenzip create -password xxx {}
+} -returnCodes 1 -result {"-password" option must be followed by password}
+
+test sevenzip2-2.0 {create syntax} -body {
+    sevenzip create -channel xxx {}
+} -returnCodes 1 -result {can not find channel named "xxx"}
+
+test sevenzip2-2.2 {create archive of invalid type} -constraints {have7zip} -body {
+    sevenzip create -forcetype xxx xxx {}
+} -returnCodes 1 -result {not supported}
+
+test sevenzip2-2.3 {create empty default archive (7z)} -constraints {have7zip haveMemchan} -setup {
+    set c [::tcl::chan::memchan]
+} -cleanup {
+    close $c; unset c
+} -body {
+    sevenzip create -channel $c {}
+    expr {[tell $c] > 0}
+} -result 1
+
+test sevenzip2-2.4 {create simple default archive (7z)} -constraints {have7zip haveMemchan} -setup {
+    set c [::tcl::chan::memchan]
+} -cleanup {
+    close $c; unset c
+} -body {
+    sevenzip create -channel $c [list [file join [testsDirectory] files test.txt]]
+    expr {[tell $c] > 0}
+} -result 1
+
+if {[testConstraint have7zip] && [testConstraint haveMemchan]} {
+    set files [list [file join [testsDirectory] files test.txt]]
+    foreach ext [lmap e [sevenzip extensions] {if {[sevenzip updatable $e]} {set e} else continue}] {
+        test sevenzip2-2.4.$ext {create simple $ext archive} -setup {
+            set c [::tcl::chan::memchan]
+        } -cleanup {
+            close $c; unset c
+        } -body {
+            sevenzip create -forcetype $ext -channel $c $files
+            expr {[tell $c] > 0}
+        } -result 1
+        unset ext
+    }
+    unset files
+}
+
+
+cleanupTests
+return

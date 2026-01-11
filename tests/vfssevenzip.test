@@ -44,10 +44,10 @@ testConstraint encodingOk [expr {"тест" eq "\u0442\u0435\u0441\u0442"}]
 set invalidTimeBugFile [file join [testsDirectory] files Microsoft.VisualStudio.Setup.TestMsi.msi] 
 testConstraint invalidTimeBug [file exists $invalidTimeBugFile]
 
-testConstraint vfs [expr {![catch {package require vfs}]}]
-
-if {[testConstraint vfs]} {
-    package require vfs::sevenzip 0.3
+if {[catch {package require vfs::sevenzip 0.3}]} {
+    puts stderr $errorInfo
+} else {
+    testConstraint vfs true
 }
 
 if {[testConstraint vfs] && [testConstraint vfsdebug]} {

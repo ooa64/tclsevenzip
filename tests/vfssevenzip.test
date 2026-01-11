@@ -5,7 +5,6 @@ if {[lsearch [namespace children] ::tcltest] < 0} {
 
 
 package require sevenzip 1
-package require vfs::sevenzip
 
 catch {
     if {[info exist env(7ZDLL)]} {
@@ -39,41 +38,47 @@ if {[info proc writeFile] eq ""} {
     }
 }
 
-if {[testConstraint vfsdebug]} {
-    puts stderr vfs::debug
-    proc vfserror {} {vfs::log $::errorInfo}
-    vfs::filesystem internalerror vfserror
-    set vfs::debug 1
-}
-
 testConstraint have7zip [sevenzip isinitialized]
 testConstraint encodingOk [expr {"тест" eq "\u0442\u0435\u0441\u0442"}]
 
 set invalidTimeBugFile [file join [testsDirectory] files Microsoft.VisualStudio.Setup.TestMsi.msi] 
 testConstraint invalidTimeBug [file exists $invalidTimeBugFile]
 
-test sevenzipvfs-1.0 {mount params} -body {
+testConstraint vfs [expr {![catch {package require vfs}]}]
+
+if {[testConstraint vfs]} {
+    package require vfs::sevenzip 0.3
+}
+
+if {[testConstraint vfs] && [testConstraint vfsdebug]} {
+    puts stderr vfs::debug
+    proc vfserror {} {vfs::log $::errorInfo}
+    vfs::filesystem internalerror vfserror
+    set vfs::debug 1
+}
+
+test sevenzipvfs-1.0 {mount params} -constraints vfs -body {
     vfs::sevenzip::Mount
 } -returnCodes 1 -result {wrong # args: should be "vfs::sevenzip::Mount zipfile local ?arg ...?"}
 
-test sevenzipvfs-1.1 {mount non-existent file} -constraints {have7zip} -cleanup {
+test sevenzipvfs-1.1 {mount non-existent file} -constraints {have7zip vfs} -cleanup {
 } -body {
     vfs::sevenzip::Mount [file join [testsDirectory] files notexistent] mnt
 } -returnCodes 1 -result "couldn't open file \"[file join [testsDirectory] files notexistent]\": no such file or directory"
 
-test sevenzipvfs-1.2 {mount unknown file} -constraints {have7zip} -cleanup {
+test sevenzipvfs-1.2 {mount unknown file} -constraints {have7zip vfs} -cleanup {
 } -body {
     vfs::sevenzip::Mount [file join [testsDirectory] files test.txt] mnt
 } -returnCodes 1 -result {not supported}
 
-test sevenzipvfs-1.3 {mount/unmount simple file} -constraints {have7zip} -cleanup {
+test sevenzipvfs-1.3 {mount/unmount simple file} -constraints {have7zip vfs} -cleanup {
     unset -nocomplain mnt
 } -body {
     set mnt [vfs::sevenzip::Mount [file join [testsDirectory] files test.7z] mnt]
     vfs::sevenzip::Unmount $mnt mnt
 } -result {}
 
-test sevenzipvfs-1.3.0 {check archive cache is clean after unmount} -constraints {have7zip} -setup {
+test sevenzipvfs-1.3.0 {check archive cache is clean after unmount} -constraints {have7zip vfs} -setup {
     set mnt [vfs::sevenzip::Mount [file join [testsDirectory] files test.7z] mnt]
 } -cleanup {
     unset mnt
@@ -82,7 +87,7 @@ test sevenzipvfs-1.3.0 {check archive cache is clean after unmount} -constraints
     dict exists $vfs::sevenzip::Cache $mnt
 } -result 0
 
-test sevenzipvfs-1.3.1 {check simple archive cache} -constraints {have7zip} -setup {
+test sevenzipvfs-1.3.1 {check simple archive cache} -constraints {have7zip vfs} -setup {
     set mnt [vfs::sevenzip::Mount [file join [testsDirectory] files test.7z] mnt]
 } -cleanup {
     vfs::sevenzip::Unmount $mnt mnt; unset mnt
@@ -90,7 +95,7 @@ test sevenzipvfs-1.3.1 {check simple archive cache} -constraints {have7zip} -set
     dict get $vfs::sevenzip::Cache $mnt
 } -result {. test.txt}
 
-test sevenzipvfs-1.3.2 {check special archive cache} -constraints {have7zip} -setup {
+test sevenzipvfs-1.3.2 {check special archive cache} -constraints {have7zip vfs} -setup {
     set mnt [vfs::sevenzip::Mount [file join [testsDirectory] files testDIRS.tgz] mnt]
 } -cleanup {
     vfs::sevenzip::Unmount $mnt mnt; unset mnt
@@ -98,7 +103,7 @@ test sevenzipvfs-1.3.2 {check special archive cache} -constraints {have7zip} -se
     dict get $vfs::sevenzip::Cache $mnt
 } -result {. {{[Content]}}}
 
-test sevenzipvfs-1.3.3 {check complex archive cache} -constraints {have7zip} -setup {
+test sevenzipvfs-1.3.3 {check complex archive cache} -constraints {have7zip vfs} -setup {
     set mnt [vfs::sevenzip::Mount [file join [testsDirectory] files testDIRS.7z] mnt]
 } -cleanup {
     vfs::sevenzip::Unmount $mnt mnt; unset mnt
@@ -106,7 +111,7 @@ test sevenzipvfs-1.3.3 {check complex archive cache} -constraints {have7zip} -se
     dict keys [dict get $vfs::sevenzip::Cache $mnt]
 } -result {. testDIRS}
 
-test sevenzipvfs-1.3.4 {check complex archive w/o dirs cache} -constraints {have7zip} -setup {
+test sevenzipvfs-1.3.4 {check complex archive w/o dirs cache} -constraints {have7zip vfs} -setup {
     set mnt [vfs::sevenzip::Mount [file join [testsDirectory] files testDIRS.arj] mnt]
 } -cleanup {
     vfs::sevenzip::Unmount $mnt mnt; unset mnt
@@ -122,7 +127,7 @@ foreach x {7z zip rar arj tar} {
         4 testDIRS/test4.txt {file 0 1}
         5 testDIRS/testX.txt {unknown 0 0}  
     } {
-        test sevenzipvfs-1.3.5-$x.$n {check item exists in cache} -constraints {have7zip} -setup {
+        test sevenzipvfs-1.3.5-$x.$n {check item exists in cache} -constraints {have7zip vfs} -setup {
             set mnt [vfs::sevenzip::Mount [file join [testsDirectory] files testDIRS.$x] mnt]
             set type "unknown"
         } -cleanup {
@@ -139,7 +144,7 @@ foreach x {7z zip rar arj tar} {
 }
 
 foreach x {7z zip rar arj tar} {
-    test sevenzipvfs-1.3.6-$x {check files from cache} -constraints {have7zip} -setup {
+    test sevenzipvfs-1.3.6-$x {check files from cache} -constraints {have7zip vfs} -setup {
         set mnt [vfs::sevenzip::Mount [file join [testsDirectory] files testDIRS.$x] mnt]
     } -cleanup {
         vfs::sevenzip::Unmount $mnt mnt; unset mnt
@@ -152,7 +157,7 @@ foreach x {7z zip rar arj tar} {
     unset x
 }
 
-test sevenzipvfs-1.4.1 {mount/glob simple file} -constraints {have7zip} -setup {
+test sevenzipvfs-1.4.1 {mount/glob simple file} -constraints {have7zip vfs} -setup {
     set mnt [vfs::sevenzip::Mount [file join [testsDirectory] files test.7z] mnt]
 } -cleanup {
     vfs::sevenzip::Unmount $mnt mnt; unset mnt
@@ -160,7 +165,7 @@ test sevenzipvfs-1.4.1 {mount/glob simple file} -constraints {have7zip} -setup {
     glob mnt/*
 } -result {mnt/test.txt}
 
-test sevenzipvfs-1.4.2 {mount/glob simple file tail} -constraints {have7zip} -setup {
+test sevenzipvfs-1.4.2 {mount/glob simple file tail} -constraints {have7zip vfs} -setup {
     set mnt [vfs::sevenzip::Mount [file join [testsDirectory] files test.7z] mnt]
 } -cleanup {
     vfs::sevenzip::Unmount $mnt mnt; unset mnt
@@ -168,7 +173,7 @@ test sevenzipvfs-1.4.2 {mount/glob simple file tail} -constraints {have7zip} -se
     glob -directory mnt -tails *
 } -result {test.txt}
 
-test sevenzipvfs-1.5.1 {mount/open simple file} -constraints {have7zip} -setup {
+test sevenzipvfs-1.5.1 {mount/open simple file} -constraints {have7zip vfs} -setup {
     set mnt [vfs::sevenzip::Mount [file join [testsDirectory] files test.7z] mnt]
 } -cleanup {
     vfs::sevenzip::Unmount $mnt mnt; unset mnt
@@ -176,7 +181,7 @@ test sevenzipvfs-1.5.1 {mount/open simple file} -constraints {have7zip} -setup {
     readFile mnt/test.txt
 } -result {test}
 
-test sevenzipvfs-1.5.2 {mount/open complex file} -constraints {have7zip} -setup {
+test sevenzipvfs-1.5.2 {mount/open complex file} -constraints {have7zip vfs} -setup {
     set mnt [vfs::sevenzip::Mount [file join [testsDirectory] files testDIRS.7z] mnt]
 } -cleanup {
     vfs::sevenzip::Unmount $mnt mnt; unset mnt
@@ -184,7 +189,7 @@ test sevenzipvfs-1.5.2 {mount/open complex file} -constraints {have7zip} -setup 
     readFile mnt/testDIRS/test4.txt
 } -result {test4}
 
-test sevenzipvfs-1.5.3 {mount/open complex zip file} -constraints {have7zip} -setup {
+test sevenzipvfs-1.5.3 {mount/open complex zip file} -constraints {have7zip vfs} -setup {
     set mnt [vfs::sevenzip::Mount [file join [testsDirectory] files testDIRS.zip] mnt]
 } -cleanup {
     vfs::sevenzip::Unmount $mnt mnt; unset mnt
@@ -206,7 +211,7 @@ foreach {n a g r} {
     C "-dir mnt/testDIRS" ""            "mnt/testDIRS"
     D "-dir mnt/testDIRS/test4.txt" ""  "mnt/testDIRS/test4.txt"
 } {
-    test sevenzipvfs-1.6.$n "glob $a '$g'" -constraints {have7zip} -setup {
+    test sevenzipvfs-1.6.$n "glob $a '$g'" -constraints {have7zip vfs} -setup {
         set mnt [vfs::sevenzip::Mount [file join [testsDirectory] files testDIRS.zip] mnt]
     } -cleanup {
         vfs::sevenzip::Unmount $mnt mnt; unset mnt
@@ -226,7 +231,7 @@ foreach {n a g r} {
     unset n g r
 }
 
-test sevenzipvfs-2.1.invalidTimeBug {invalidTimeBug} -constraints {have7zip invalidTimeBug} -setup {
+test sevenzipvfs-2.1.invalidTimeBug {invalidTimeBug} -constraints {have7zip vfs invalidTimeBug} -setup {
     set mnt [vfs::sevenzip::Mount $invalidTimeBugFile mnt]
 } -cleanup {
     vfs::sevenzip::Unmount $mnt mnt; unset mnt
@@ -234,7 +239,7 @@ test sevenzipvfs-2.1.invalidTimeBug {invalidTimeBug} -constraints {have7zip inva
     file isfile mnt/!_Columns
 } -result {1}
 
-test sevenzipvfs-2.2.1.dotPrefixBug {dotPrefixBug root} -constraints {have7zip dotPrefixBug} -setup {
+test sevenzipvfs-2.2.1.dotPrefixBug {dotPrefixBug root} -constraints {have7zip vfs dotPrefixBug} -setup {
     set mnt [vfs::sevenzip::Mount [file join [testsDirectory] files testDIRSDOT.tar] mnt]
 } -cleanup {
     vfs::sevenzip::Unmount $mnt mnt; unset mnt
@@ -242,7 +247,7 @@ test sevenzipvfs-2.2.1.dotPrefixBug {dotPrefixBug root} -constraints {have7zip d
     glob mnt/*
 } -result {mnt/testDIRS}
 
-test sevenzipvfs-2.2.2.dotPrefixBug {dotPrefixBug under root} -constraints {have7zip dotPrefixBug} -setup {
+test sevenzipvfs-2.2.2.dotPrefixBug {dotPrefixBug under root} -constraints {have7zip vfs dotPrefixBug} -setup {
     set mnt [vfs::sevenzip::Mount [file join [testsDirectory] files testDIRSDOT.tar] mnt]
 } -cleanup {
     vfs::sevenzip::Unmount $mnt mnt; unset mnt
@@ -250,7 +255,7 @@ test sevenzipvfs-2.2.2.dotPrefixBug {dotPrefixBug under root} -constraints {have
     glob mnt/testDIRS/*
 } -result {mnt/testDIRS/test1 mnt/testDIRS/test2 mnt/testDIRS/test3 mnt/testDIRS/test4.txt mnt/testDIRS/test5.txt mnt/testDIRS/test6.txt}
 
-test sevenzipvfs-2.2.3.dotPrefixBug {dotPrefixBug dir} -constraints {have7zip dotPrefixBug} -setup {
+test sevenzipvfs-2.2.3.dotPrefixBug {dotPrefixBug dir} -constraints {have7zip vfs dotPrefixBug} -setup {
     set mnt [vfs::sevenzip::Mount [file join [testsDirectory] files testDIRSDOT.tar] mnt]
 } -cleanup {
     vfs::sevenzip::Unmount $mnt mnt; unset mnt
@@ -258,7 +263,7 @@ test sevenzipvfs-2.2.3.dotPrefixBug {dotPrefixBug dir} -constraints {have7zip do
     glob mnt/testDIRS/test1
 } -result {mnt/testDIRS/test1}
 
-test sevenzipvfs-2.2.4.dotPrefixBug {dotPrefixBug file} -constraints {have7zip dotPrefixBug} -setup {
+test sevenzipvfs-2.2.4.dotPrefixBug {dotPrefixBug file} -constraints {have7zip vfs dotPrefixBug} -setup {
     set mnt [vfs::sevenzip::Mount [file join [testsDirectory] files testDIRSDOT.tar] mnt]
 } -cleanup {
     vfs::sevenzip::Unmount $mnt mnt; unset mnt
@@ -266,7 +271,7 @@ test sevenzipvfs-2.2.4.dotPrefixBug {dotPrefixBug file} -constraints {have7zip d
     glob mnt/testDIRS/test4.txt
 } -result {mnt/testDIRS/test4.txt}
 
-test sevenzipvfs-2.2.5.dotPrefixBug {dotPrefixBug file size (stat)} -constraints {have7zip dotPrefixBug} -setup {
+test sevenzipvfs-2.2.5.dotPrefixBug {dotPrefixBug file size (stat)} -constraints {have7zip vfs dotPrefixBug} -setup {
     set mnt [vfs::sevenzip::Mount [file join [testsDirectory] files testDIRSDOT.tar] mnt]
 } -cleanup {
     vfs::sevenzip::Unmount $mnt mnt; unset mnt
@@ -274,7 +279,7 @@ test sevenzipvfs-2.2.5.dotPrefixBug {dotPrefixBug file size (stat)} -constraints
     file size mnt/testDIRS/test4.txt
 } -result {mnt/testDIRS/test4.txt}
 
-test sevenzipvfs-2.2.6.dotPrefixBug {dotPrefixBug file read (extract)} -constraints {have7zip dotPrefixBug} -setup {
+test sevenzipvfs-2.2.6.dotPrefixBug {dotPrefixBug file read (extract)} -constraints {have7zip vfs dotPrefixBug} -setup {
     set mnt [vfs::sevenzip::Mount [file join [testsDirectory] files testDIRSDOT.tar] mnt]
 } -cleanup {
     vfs::sevenzip::Unmount $mnt mnt; unset mnt

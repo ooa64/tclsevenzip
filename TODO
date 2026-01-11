@@ -1,5 +1,17 @@
-implement get/set size/mode/time, tests
-streams should be owned by callbacks as members?
-new command to create archives (with properties)
-progress callbacks
-unload 7z library
+implement get/set size/mode/time with tests
+
+add syntax to extract all:
+	handle extract ?destination?
+
+add command to create archives:
+	sevenzip create ?-properties proplist? ?-forcetype type? ?-password password? ?-channel? pathOrChannel {}
+
+progress callbacks:
+	sevenzip open ?-callback script? ...
+	handle extract ?-callback script? ...
+	sevenzip create ?-callback script? ...
+		where callback is `proc cb {op??? item? progress? total?}`
+
+unload 7z library without fatal `rename sevenzip ""`
+
+internals: streams should be owned by callbacks as members?

@@ -41,13 +41,19 @@ testConstraint have7zip [sevenzip isinitialized]
 testConstraint haveMemchan [expr {![catch {package require tcl::chan::memchan}]}]
 testConstraint encodingOk [expr {"тест" eq "\u0442\u0435\u0441\u0442"}]
 
+if {[testConstraint have7zip]} {
+    foreach e {7z zip rar tar arj} {
+        testConstraint supported.$e [expr {$e in [sevenzip extensions]}]
+    }
+}
+
 test sevenzip-1.0 {syntax} -body {
     sevenzip
 } -returnCodes 1 -result {wrong # args: should be "sevenzip subcommand"}
 
 test sevenzip-1.1 {syntax} -body {
     sevenzip xxx
-} -returnCodes 1 -result {bad subcommand "xxx": must be initialize, isinitialized, extensions, or open}
+} -returnCodes 1 -result {bad subcommand "xxx": must be initialize, isinitialized, extensions, updatable, open, or create}
 
 test sevenzip-1.2 {initialize syntax}  -body {
     sevenzip initialize xxx xxx
@@ -740,7 +746,7 @@ test sevenzip-6.4 {extract multivolume} -constraints {have7zip} -setup {
 } -result {1024}
 
 foreach {n x} {0 .7z 1 .zip 2 .rar 3 .tar 4 .arj} {
-    test sevenzip-7.0.$n "look into $x" -constraints have7zip -setup {
+    test sevenzip-7.0.$n "look into $x" -constraints [list have7zip supported$x] -setup {
         set cmd [sevenzip open [file join [testsDirectory] files test$x]]
     } -body {
         $cmd list
@@ -751,7 +757,7 @@ foreach {n x} {0 .7z 1 .zip 2 .rar 3 .tar 4 .arj} {
 }
 
 foreach {n x} {0 .7z 1 .zip 2 .rar 3 .tar 4 .arj} {
-    test sevenzip-7.1.$n "look into $x (autodetect)" -constraints have7zip -setup {
+    test sevenzip-7.1.$n "look into $x (autodetect)" -constraints [list have7zip supported$x] -setup {
         set cmd [sevenzip open -d [file join [testsDirectory] files test$x]]
     } -body {
         $cmd list
@@ -762,7 +768,7 @@ foreach {n x} {0 .7z 1 .zip 2 .rar 3 .tar 4 .arj} {
 }
 
 foreach {n x} {0 .7z 1 .zip 2 .rar 3 .tar 4 .arj} {
-    test sevenzip-7.2.$n "extract data from $x" -constraints {have7zip} -setup {
+    test sevenzip-7.2.$n "extract data from $x" -constraints [list have7zip supported$x] -setup {
         set cmd [sevenzip open [file join [testsDirectory] files test$x]]
         set out [file join [temporaryDirectory] test.txt]
     } -body {
@@ -776,7 +782,7 @@ foreach {n x} {0 .7z 1 .zip 2 .rar 3 .tar 4 .arj} {
 }
 
 foreach {n x} {0 .7z 1 .zip 2 .rar 3 .tar} {
-    test sevenzip-7.3.$n "look into $x (subdirs)" -constraints have7zip -setup {
+    test sevenzip-7.3.$n "look into $x (subdirs)" -constraints [list have7zip supported$x] -setup {
         set cmd [sevenzip open [file join [testsDirectory] files testDIRS$x]]
     } -body {
         join [lsort [$cmd list]] \n

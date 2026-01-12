@@ -329,10 +329,18 @@ int SevenzipCmd::CreateArchive(Tcl_Obj *pathnames, Tcl_Obj *destination,
                 return TCL_ERROR;
             if (Tcl_ListObjIndex(tclInterp, properties, i + 1, &value) != TCL_OK)
                 return TCL_ERROR;
-            // FIXME: properties are typed, need to set correct type here
-            hr = archive.setStringProperty(
-                    sevenzip::fromBytes(Tcl_GetString(key)),
-                    sevenzip::fromBytes(Tcl_GetString(value)));
+            int intValue;
+            if (Tcl_GetIntFromObj(tclInterp, value, &intValue) == TCL_OK)
+                hr = archive.setIntProperty(
+                        sevenzip::fromBytes(Tcl_GetString(key)), intValue);
+            else if (Tcl_GetBooleanFromObj(tclInterp, value, &intValue) == TCL_OK)
+                hr = archive.setBoolProperty(
+                        sevenzip::fromBytes(Tcl_GetString(key)), intValue);
+            else
+                hr = archive.setStringProperty(
+                        sevenzip::fromBytes(Tcl_GetString(key)),
+                        sevenzip::fromBytes(Tcl_GetString(value)));
+            Tcl_ResetResult(tclInterp);
         }
     }
     if (hr == S_OK) {

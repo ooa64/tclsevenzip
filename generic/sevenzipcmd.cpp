@@ -307,13 +307,16 @@ int SevenzipCmd::CreateArchive(Tcl_Obj *pathnames, Tcl_Obj *destination,
     sevenzip::Oarchive archive;
     SevenzipInStream istream(tclInterp);
     SevenzipOutStream ostream(tclInterp);
+    wchar_t passwordBuf[1024];
     HRESULT hr = S_OK;
     if (usechannel)
-        hr = ostream.AttachOpenChannel(destination);
+        if (ostream.AttachOpenChannel(destination) != TCL_OK)
+            return lastError(tclInterp, E_FAIL);
     if (hr == S_OK)
         hr = archive.open(lib, istream, ostream,
                 usechannel ? NULL : sevenzip::fromBytes(Tcl_GetString(destination)),
-                password ? sevenzip::fromBytes(Tcl_GetString(password)) : NULL,
+                password ? sevenzip::fromBytes(passwordBuf, sizeof(passwordBuf)/sizeof(wchar_t),
+                        Tcl_GetString(password)) : NULL,
                 type);
     if (hr == S_OK && properties) {
         int length;
@@ -345,8 +348,6 @@ int SevenzipCmd::CreateArchive(Tcl_Obj *pathnames, Tcl_Obj *destination,
     }
     if (hr == S_OK)
         hr = archive.update();
-    if (!usechannel)
-        Tcl_Close(tclInterp, ostream.DetachChannel());
     if (hr != S_OK)
         return lastError(tclInterp, hr);
     return TCL_OK;

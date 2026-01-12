@@ -679,19 +679,35 @@ test sevenzip-5.9 {extract encrypted data with archive password} -constraints {h
     set out [file join [temporaryDirectory] test.txt]
     writeFile $out "TEST"
 } -body {
-    $cmd extract test.txt $out
+    $cmd extract $out test.txt
     readFile $out
 } -cleanup {
     $cmd close
     file delete $out
 } -result {test}
 
+test sevenzip-5.9.1 {extract encrypted data with invalid archive password} -constraints {have7zip} -body {
+    sevenzip open -p TESTX [file join [testsDirectory] files testPWD0.7z]
+} -result {not supported} -returnCodes 1
+
 test sevenzip-5.10 {extract data with archive password} -constraints {have7zip} -setup {
     set cmd [sevenzip open -p TEST [file join [testsDirectory] files testPWD1.7z]]
     set out [file join [temporaryDirectory] test.txt]
     writeFile $out "TEST"
 } -body {
-    $cmd extract test.txt $out
+    $cmd extract $out test.txt
+    readFile $out
+} -cleanup {
+    $cmd close
+    file delete $out
+} -result {test}
+
+test sevenzip-5.10.1 {extract data with invalid archive password} -constraints {have7zip} -setup {
+    set cmd [sevenzip open -p TESTX [file join [testsDirectory] files testPWD1.7z]]
+    set out [file join [temporaryDirectory] test.txt]
+    writeFile $out "TEST"
+} -body {
+    $cmd extract $out test.txt
     readFile $out
 } -cleanup {
     $cmd close
@@ -703,7 +719,19 @@ test sevenzip-5.11 {extract data with item password} -constraints {have7zip} -se
     set out [file join [temporaryDirectory] test.txt]
     writeFile $out "TEST"
 } -body {
-    $cmd extract -p TEST test.txt $out
+    $cmd extract -p TEST $out test.txt
+    readFile $out
+} -cleanup {
+    $cmd close
+    file delete $out
+} -result {test}
+
+test sevenzip-5.11.1 {extract data with item password} -constraints {have7zip} -setup {
+    set cmd [sevenzip open [file join [testsDirectory] files testPWD1.7z]]
+    set out [file join [temporaryDirectory] test.txt]
+    writeFile $out "TEST"
+} -body {
+    $cmd extract -p TESTX $out test.txt
     readFile $out
 } -cleanup {
     $cmd close

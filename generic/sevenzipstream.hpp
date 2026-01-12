@@ -18,10 +18,10 @@ public:
 
     virtual sevenzip::Istream* Clone() const override;
     
-    virtual bool IsDir(const wchar_t *filename) const override;
-    virtual UInt64 GetSize(const wchar_t *filename) const override;
-    virtual UInt32 GetMode(const wchar_t *filename) const override;
-    virtual UInt32 GetTime(const wchar_t *filename) const override;
+    virtual bool IsDir(const wchar_t *pathname) override;
+    virtual UInt64 GetSize(const wchar_t *pathname) override;
+    virtual UInt32 GetMode(const wchar_t *pathname) override;
+    virtual UInt32 GetTime(const wchar_t *pathname) override;
 
     HRESULT AttachOpenChannel(Tcl_Obj *channel);
     HRESULT AttachFileChannel(Tcl_Obj *filename);
@@ -32,6 +32,10 @@ private:
     Tcl_Interp *tclInterp;
     Tcl_Channel tclChannel;
     bool usechannel;
+
+    Tcl_StatBuf *getStatBuf(const wchar_t* pathname);
+    Tcl_StatBuf *statBuf;
+    wchar_t *statPath;
 };
 
 class SevenzipOutStream:  public sevenzip::Ostream {
@@ -46,10 +50,10 @@ public:
     virtual HRESULT Seek(Int64 offset, UInt32 seekOrigin, UInt64 &newPosition) override;
     virtual void Close() override;
 
-    virtual HRESULT Mkdir(const wchar_t* dirname) override;
-    // virtual HRESULT SetSize(UInt64 size) override;
-    virtual HRESULT SetMode(const wchar_t* path, UInt32 mode) override;
-    virtual HRESULT SetTime(const wchar_t* filename, UInt32 time) override;
+    virtual HRESULT Mkdir(const wchar_t* pathname) override;
+    // virtual HRESULT SetSize(const wchar_t* pathname, UInt64 size) override;
+    virtual HRESULT SetMode(const wchar_t* pathname, UInt32 mode) override;
+    virtual HRESULT SetTime(const wchar_t* pathname, UInt32 time) override;
 
     HRESULT AttachOpenChannel(Tcl_Obj *channel);
     HRESULT AttachFileChannel(Tcl_Obj *filename);

@@ -1,6 +1,8 @@
 #include "sevenzipstream.hpp"
 
 #include <sevenzip.h>
+#include <sys/stat.h>
+#include <wchar.h>
 
 #if defined(SEVENZIPSTREAM_DEBUG)
 #   include <iostream>
@@ -10,17 +12,21 @@
 #endif
 
 SevenzipInStream::SevenzipInStream(Tcl_Interp *interp) : 
-        tclInterp(interp), tclChannel(NULL), usechannel(false) {
+        tclInterp(interp), tclChannel(NULL), usechannel(false),
+        statBuf(Tcl_AllocStatBuf()), statPath(NULL) {
     DEBUGLOG(this << " SevenzipInStream");            
 }
 
 SevenzipInStream::~SevenzipInStream() {
     DEBUGLOG(this << " ~SevenzipInStream, tclChannel " << tclChannel << " usechannel " << usechannel);
+    if (statPath)
+        ckfree(statPath);
+    ckfree(statBuf);
     Close();
 }
 
 HRESULT SevenzipInStream::Open(const wchar_t *filename) {
-    DEBUGLOG(this << " SevenzipInStream::Open " << filename);
+    DEBUGLOG(this << " SevenzipInStream::Open " << (filename ? filename : L"NULL"));
     if (usechannel)
         return S_OK;
     if (!filename)
@@ -73,35 +79,43 @@ sevenzip::Istream *SevenzipInStream::Clone() const {
     return new SevenzipInStream(tclInterp);
 }
 
-bool SevenzipInStream::IsDir(const wchar_t* filename) const {
-    DEBUGLOG(this << " SevenzipInStream::IsDir " << filename);
+bool SevenzipInStream::IsDir(const wchar_t* pathname) {
+    DEBUGLOG(this << " SevenzipInStream::IsDir " << pathname);
     if (usechannel)
         return false;
-    // TODO: implement directory checking
+    auto *stat = getStatBuf(pathname);
+    if (stat)
+        return S_ISDIR(Tcl_GetModeFromStat(stat));
     return false;
 }
 
-UInt64 SevenzipInStream::GetSize(const wchar_t* filename) const {
-    DEBUGLOG(this << " SevenzipInStream::GetSize " << filename);
+UInt64 SevenzipInStream::GetSize(const wchar_t* pathname) {
+    DEBUGLOG(this << " SevenzipInStream::GetSize " << pathname);
     if (usechannel)
         return 0;
-    // TODO: implement size retrieval
+    auto *stat = getStatBuf(pathname);
+    if (stat)
+        return Tcl_GetSizeFromStat(stat);
     return 0;
 }
 
-UInt32 SevenzipInStream::GetMode(const wchar_t *filename) const {
-    DEBUGLOG(this << "  SevenzipInStream::GetMode " << filename);
+UInt32 SevenzipInStream::GetMode(const wchar_t *pathname) {
+    DEBUGLOG(this << "  SevenzipInStream::GetMode " << pathname);
     if (usechannel)
         return 0;
-    // TODO: implement mode retrieval
+    auto *stat = getStatBuf(pathname);
+    if (stat)
+        return Tcl_GetModeFromStat(stat);
     return 0;
 }
 
-UInt32 SevenzipInStream::GetTime(const wchar_t *filename) const {
-    DEBUGLOG(this << " SevenzipInStream::GetTime " << filename);
+UInt32 SevenzipInStream::GetTime(const wchar_t *pathname) {
+    DEBUGLOG(this << " SevenzipInStream::GetTime " << pathname);
     if (usechannel)
         return 0;
-    // TODO: implement time retrieval
+    auto *stat = getStatBuf(pathname);
+    if (stat)
+        return Tcl_GetModificationTimeFromStat(stat);        
     return 0;
 }
 
@@ -139,6 +153,26 @@ Tcl_Channel SevenzipInStream::DetachChannel() {
     usechannel = false;
     return channel;
 };
+
+Tcl_StatBuf *SevenzipInStream::getStatBuf(const wchar_t* pathname) {
+    if (!pathname)
+        return NULL;
+    if (statPath && wcscmp(statPath, pathname) == 0)
+        return statBuf;
+    if (statPath)
+        ckfree((char *)statPath);
+
+    statPath = (wchar_t *)ckalloc((wcslen(pathname) + 1) * sizeof(wchar_t));
+    wcscpy(statPath, pathname);
+
+    Tcl_Obj *name = Tcl_NewStringObj(sevenzip::toBytes(pathname), -1);
+    Tcl_IncrRefCount(name);
+    int result = Tcl_FSStat(name, statBuf);
+    Tcl_DecrRefCount(name);
+    if (result != TCL_OK)
+        return NULL;
+    return statBuf;
+}
 
 
 SevenzipOutStream::SevenzipOutStream(Tcl_Interp *interp):
@@ -200,24 +234,29 @@ void SevenzipOutStream::Close() {
     }
 }
 
-HRESULT SevenzipOutStream::Mkdir(const wchar_t* dirname) {
-    DEBUGLOG(this << " SevenzipOutStream::Mkdir " << dirname);
+HRESULT SevenzipOutStream::Mkdir(const wchar_t* pathname) {
+    DEBUGLOG(this << " SevenzipOutStream::Mkdir " << pathname);
     if (usechannel)
         return S_OK;
     return createDirectory(tclInterp,
-            Tcl_NewStringObj(sevenzip::toBytes(dirname), -1)) ? S_OK : S_FALSE;
+            Tcl_NewStringObj(sevenzip::toBytes(pathname), -1)) ? S_OK : S_FALSE;
 }
 
-HRESULT SevenzipOutStream::SetMode(const wchar_t* path, UInt32 mode) {
-    DEBUGLOG(this << " SevenzipOutStream::SetMode " << path << " " << std::oct << mode);
+// HRESULT SevenzipOutStream::SetSize(const wchar_t* pathname, UInt64 size) {
+//     DEBUGLOG(this << " SevenzipOutStream::SetSize " << pathname << " " << size);
+//     return S_OK;
+// }
+
+HRESULT SevenzipOutStream::SetMode(const wchar_t* pathname, UInt32 mode) {
+    DEBUGLOG(this << " SevenzipOutStream::SetMode " << pathname << " " << std::oct << mode);
     if (usechannel)
         return S_OK;
     // TODO: implement mode setting
     return S_FALSE;
 }
 
-HRESULT SevenzipOutStream::SetTime(const wchar_t* filename, UInt32 time) {
-    DEBUGLOG(this << " SevenzipOutStream::SetTime " << filename << " " << time);
+HRESULT SevenzipOutStream::SetTime(const wchar_t* pathname, UInt32 time) {
+    DEBUGLOG(this << " SevenzipOutStream::SetTime " << pathname << " " << time);
     if (usechannel)
         return S_OK;
     // TODO: implement time setting

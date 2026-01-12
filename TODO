@@ -1,10 +1,24 @@
 implement get/set size/mode/time with tests
 
-add syntax to extract all:
-	handle extract ?destination?
+fix extraction with invalid password (SetOperationResult?)
+	tests sevenzip-5.10.1 and sevenzip-5.11.1
+
+change syntax to extract all(?):
+	handle extract ?-password password? ?-channel? pathOrChannel itemName - current
+	handle extract ?-password password? ?destination? - ?
+	handle extract ?-password password? ?-directory dir? ?itemsMask? - ?
+
+add formats command returns dictionary
+	use numeric types as format id for -forcetype
+
+add create command option -directory:
+	sevenzip create ?-properties proplist? ?-forcetype type? ?-password password? ?-directory dir? ?-channel? pathOrChannel filesList
+
+change create command:
+	make all items paths relative ?
 
 add directory option to list to limit output:
-	handle list -directory path
+	handle list -directory dir or -path itempath? 
 
 progress callbacks:
 	sevenzip open ?-callback script? ...

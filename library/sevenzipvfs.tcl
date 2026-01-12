@@ -186,7 +186,7 @@ proc vfs::sevenzip::open {zipfd name mode permissions} {
             }
             set nfd [vfs::memchan]
             fconfigure $nfd -translation binary
-            $zipfd extract -c $name $nfd
+            $zipfd extract -c $nfd $name
             fconfigure $nfd -translation auto
             seek $nfd 0
 

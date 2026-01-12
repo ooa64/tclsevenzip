@@ -519,7 +519,7 @@ test sevenzip-5.0.1 {extract syntax} -constraints {have7zip} -setup {
     $cmd extract
 } -cleanup {
     $cmd close
-} -returnCodes 1 -result {wrong # args: should be "sevenzip* extract ?options? item path"} -match glob
+} -returnCodes 1 -result {wrong # args: should be "sevenzip* extract ?options? path item"} -match glob
 
 test sevenzip-5.0.2 {extract syntax} -constraints {have7zip} -setup {
     set cmd [sevenzip open [file join [testsDirectory] files test.7z]]
@@ -527,7 +527,7 @@ test sevenzip-5.0.2 {extract syntax} -constraints {have7zip} -setup {
     $cmd extract xxx
 } -cleanup {
     $cmd close
-} -returnCodes 1 -result {wrong # args: should be "sevenzip* extract ?options? item path"} -match glob
+} -returnCodes 1 -result {wrong # args: should be "sevenzip* extract ?options? path item"} -match glob
 
 test sevenzip-5.0.3 {extract syntax} -constraints {have7zip} -setup {
     set cmd [sevenzip open [file join [testsDirectory] files test.7z]]
@@ -549,7 +549,7 @@ test sevenzip-5.1 {extract invalid source} -constraints {have7zip} -setup {
     set cmd [sevenzip open [file join [testsDirectory] files test.7z]]
     set out [file join [temporaryDirectory] notexistent test.txt]
 } -body {
-    $cmd extract notexistent $out
+    $cmd extract $out notexistent
 } -cleanup {
     $cmd close
 } -returnCodes 1 -result {no such item "notexistent" in the archive}
@@ -558,7 +558,7 @@ test sevenzip-5.2 {extract invalid destination} -constraints {have7zip} -setup {
     set cmd [sevenzip open [file join [testsDirectory] files test.7z]]
     set out [file join [temporaryDirectory] notexistent test.txt]
 } -body {
-    $cmd extract test.txt $out
+    $cmd extract $out test.txt
 } -cleanup {
     $cmd close
 } -returnCodes 1 -result {couldn't open file "*/notexistent/test.txt": no such file or directory} -match glob
@@ -568,7 +568,7 @@ test sevenzip-5.3 {extract ok} -constraints {have7zip} -setup {
     set cmd [sevenzip open [file join [testsDirectory] files test.7z]]
     set out [file join [temporaryDirectory] test.txt]
 } -body {
-    $cmd extract test.txt $out
+    $cmd extract $out test.txt
     file exists $out
 } -cleanup {
     $cmd close
@@ -579,7 +579,7 @@ test sevenzip-5.4 {extract data} -constraints {have7zip} -setup {
     set cmd [sevenzip open [file join [testsDirectory] files test.7z]]
     set out [file join [temporaryDirectory] test.txt]
 } -body {
-    $cmd extract test.txt $out
+    $cmd extract $out test.txt
     readFile $out
 } -cleanup {
     $cmd close
@@ -592,7 +592,7 @@ test sevenzip-5.4.1 {extract data to nonwritable channel} -constraints {have7zip
     writeFile $out ""
     set chn [open $out r]
 } -body {
-    $cmd extract -c test.txt $chn
+    $cmd extract -c $chn test.txt
 } -cleanup {
     close $chn
     $cmd close
@@ -604,7 +604,7 @@ test sevenzip-5.4.2 {extract data to channel} -constraints {have7zip} -setup {
     set out [file join [temporaryDirectory] test.txt]
     set chn [open $out a]
 } -body {
-    $cmd extract -c test.txt $chn
+    $cmd extract -c $chn test.txt
     flush $chn
     readFile $out
 } -cleanup {
@@ -617,7 +617,7 @@ test sevenzip-5.4.3 {extract data to memchan} -constraints {have7zip haveMemchan
     set cmd [sevenzip open [file join [testsDirectory] files test.7z]]
     set chn [tcl::chan::memchan]
 } -body {
-    $cmd extract -c test.txt $chn
+    $cmd extract -c $chn test.txt
     seek $chn 0
     read $chn
 } -cleanup {
@@ -630,7 +630,7 @@ test sevenzip-5.5 {extract data, destination exists} -constraints {have7zip} -se
     set out [file join [temporaryDirectory] test.txt]
     writeFile $out "TEST"
 } -body {
-    $cmd extract test.txt $out
+    $cmd extract $out test.txt
     readFile $out
 } -cleanup {
     $cmd close
@@ -642,7 +642,7 @@ test sevenzip-5.6 {extract data with path} -constraints {have7zip} -setup {
     set out [file join [temporaryDirectory] test.txt]
     writeFile $out "TEST"
 } -body {
-    $cmd extract testDIRS/test3/test32/test321.txt $out
+    $cmd extract $out testDIRS/test3/test32/test321.txt
     readFile $out
 } -cleanup {
     $cmd close
@@ -654,7 +654,7 @@ test sevenzip-5.7 {extract intl} -constraints {have7zip encodingOk} -setup {
     set out [file join [temporaryDirectory] тест.txt]
     writeFile $out "TEST"
 } -body {
-    $cmd extract тест/тест1/тест1.txt $out
+    $cmd extract $out тест/тест1/тест1.txt
     readFile $out
 } -cleanup {
     $cmd close
@@ -666,7 +666,7 @@ test sevenzip-5.8 {extract encrypted data error} -constraints {have7zip} -setup 
     set out [file join [temporaryDirectory] test.txt]
     writeFile $out "TEST"
 } -body {
-    $cmd extract test.txt $out
+    $cmd extract $out test.txt
     readFile $out
 } -cleanup {
     $cmd close
@@ -738,7 +738,7 @@ test sevenzip-6.4 {extract multivolume} -constraints {have7zip} -setup {
     catch {file delete $out}
     writeFile $out "TEST"
 } -body {
-    $cmd extract test/test.txt $out
+    $cmd extract $out test/test.txt
     string length [readFile $out]
 } -cleanup {
     $cmd close
@@ -772,7 +772,7 @@ foreach {n x} {0 .7z 1 .zip 2 .rar 3 .tar 4 .arj} {
         set cmd [sevenzip open [file join [testsDirectory] files test$x]]
         set out [file join [temporaryDirectory] test.txt]
     } -body {
-        $cmd extract test.txt $out
+        $cmd extract $out test.txt
         readFile $out
     } -cleanup {
         $cmd close
@@ -832,7 +832,7 @@ test sevenzip-7.3.5.1 "look into tgz (and into tar inside)" -constraints {have7z
     set in [tcl::chan::memchan]
     fconfigure $in -translation binary
     set cmd1 [sevenzip open [file join [testsDirectory] files testDIRS.tgz]]
-    $cmd1 extract -c {[Content]} $in
+    $cmd1 extract -c $in {[Content]}
     seek $in 0
 } -body {
     set cmd [sevenzip open -f tar -c $in]
@@ -875,7 +875,7 @@ test sevenzip-9.1 {read in the child interp} -constraints {have7zip} -setup {
     interp eval i [list apply {{in out} {
         package require sevenzip
         set cmd [sevenzip open $in]
-        $cmd extract test.txt $out
+        $cmd extract $out test.txt
         $cmd close
     }} [file join [testsDirectory] files test.7z] $out]
     readFile $out

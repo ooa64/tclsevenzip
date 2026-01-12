@@ -341,10 +341,10 @@ int SevenzipArchiveCmd::Command (int objc, Tcl_Obj *const objv[]) {
                     break;
                 }
             }
-            if (Extract(objv[objc-2], objv[objc-1], password, usechannel) != TCL_OK)
+            if (Extract(objv[objc-1], objv[objc-2], password, usechannel) != TCL_OK)
                 return TCL_ERROR;
         } else {
-            Tcl_WrongNumArgs(tclInterp, 2, objv, "?options? item path");
+            Tcl_WrongNumArgs(tclInterp, 2, objv, "?options? path item");
             return TCL_ERROR;
         }
         break;

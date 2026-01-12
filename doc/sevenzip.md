@@ -10,11 +10,10 @@ place 7z.dll in PATH (windows) or 7z.so in LD_LIBRARY_PATH (unix)
 	sevenzip open ?-multivolume? ?-detecttype | -forcetype type? ?-password password? ?-channel? pathOrChannel
 	sevenzip create ?-properties proplist? ?-forcetype type? ?-password password? ?-channel? pathOrChannel filesList
 
-
 *sevenzip open* returns archive *handle*:
 
 	handle info
 	handle count
 	handle list ?-info? ?-nocase? ?-exact? ?-type f|d? ?--? ?pattern?
-	handle extract ?-password password? ?-channel? itemname pathOrChannel
+	handle extract ?-password password? ?-channel? pathOrChannel itemName
 	handle close

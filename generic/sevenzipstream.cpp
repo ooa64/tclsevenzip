@@ -1,8 +1,12 @@
 #include "sevenzipstream.hpp"
 
 #include <sevenzip.h>
-#include <sys/stat.h>
 #include <wchar.h>
+
+#include <sys/stat.h>
+#ifndef S_ISDIR 
+#define S_ISDIR(_m_) (((_m_) & _S_IFDIR) == _S_IFDIR)
+#endif
 
 #if defined(SEVENZIPSTREAM_DEBUG)
 #   include <iostream>
@@ -12,13 +16,13 @@
 #endif
 
 SevenzipInStream::SevenzipInStream(Tcl_Interp *interp) : 
-        tclInterp(interp), tclChannel(NULL), usechannel(false),
+        tclInterp(interp), tclChannel(NULL), attached(false),
         statBuf(Tcl_AllocStatBuf()), statPath(NULL) {
     DEBUGLOG(this << " SevenzipInStream");            
 }
 
 SevenzipInStream::~SevenzipInStream() {
-    DEBUGLOG(this << " ~SevenzipInStream, tclChannel " << tclChannel << " usechannel " << usechannel);
+    DEBUGLOG(this << " ~SevenzipInStream");
     if (statPath)
         ckfree(statPath);
     ckfree(statBuf);
@@ -27,14 +31,14 @@ SevenzipInStream::~SevenzipInStream() {
 
 HRESULT SevenzipInStream::Open(const wchar_t *filename) {
     DEBUGLOG(this << " SevenzipInStream::Open " << (filename ? filename : L"NULL"));
-    if (usechannel)
+    if (attached)
         return S_OK;
     if (!filename)
         return E_FAIL;
 
     tclChannel = getFileChannel(tclInterp,
             Tcl_NewStringObj(sevenzip::toBytes(filename), -1), false);
-    DEBUGLOG(this << " SevenzipInStream::Opened " << tclChannel << " errno " << Tcl_GetErrno());
+    DEBUGLOG(this << " SevenzipInStream::Open channel " << tclChannel << " errno " << Tcl_GetErrno());
     return sevenzip::getResult(tclChannel);
 }
 
@@ -67,8 +71,8 @@ HRESULT SevenzipInStream::Seek(Int64 offset, UInt32 origin, UInt64 &position) {
 }
 
 void SevenzipInStream::Close() {
-    DEBUGLOG(this << " SevenzipInStream::Close");
-    if (tclChannel && !usechannel) {
+    DEBUGLOG(this << " SevenzipInStream::Close channel " << tclChannel << " attached " << attached);
+    if (tclChannel && !attached) {
         Tcl_Close(tclInterp, tclChannel);
         tclChannel = NULL;
     }
@@ -80,8 +84,8 @@ sevenzip::Istream *SevenzipInStream::Clone() const {
 }
 
 bool SevenzipInStream::IsDir(const wchar_t* pathname) {
-    DEBUGLOG(this << " SevenzipInStream::IsDir " << pathname);
-    if (usechannel)
+    DEBUGLOG(this << " SevenzipInStream::IsDir " << (pathname ? pathname : L"NULL"));
+    if (attached)
         return false;
     auto *stat = getStatBuf(pathname);
     if (stat)
@@ -90,8 +94,8 @@ bool SevenzipInStream::IsDir(const wchar_t* pathname) {
 }
 
 UInt64 SevenzipInStream::GetSize(const wchar_t* pathname) {
-    DEBUGLOG(this << " SevenzipInStream::GetSize " << pathname);
-    if (usechannel)
+    DEBUGLOG(this << " SevenzipInStream::GetSize " << (pathname ? pathname : L"NULL"));
+    if (attached)
         return 0;
     auto *stat = getStatBuf(pathname);
     if (stat)
@@ -100,8 +104,8 @@ UInt64 SevenzipInStream::GetSize(const wchar_t* pathname) {
 }
 
 UInt32 SevenzipInStream::GetMode(const wchar_t *pathname) {
-    DEBUGLOG(this << "  SevenzipInStream::GetMode " << pathname);
-    if (usechannel)
+    DEBUGLOG(this << "  SevenzipInStream::GetMode " << (pathname ? pathname : L"NULL"));
+    if (attached)
         return 0;
     auto *stat = getStatBuf(pathname);
     if (stat)
@@ -110,47 +114,47 @@ UInt32 SevenzipInStream::GetMode(const wchar_t *pathname) {
 }
 
 UInt32 SevenzipInStream::GetTime(const wchar_t *pathname) {
-    DEBUGLOG(this << " SevenzipInStream::GetTime " << pathname);
-    if (usechannel)
+    DEBUGLOG(this << " SevenzipInStream::GetTime " << (pathname ? pathname : L"NULL"));
+    if (attached)
         return 0;
     auto *stat = getStatBuf(pathname);
     if (stat)
-        return Tcl_GetModificationTimeFromStat(stat);        
+        return (UInt32)Tcl_GetModificationTimeFromStat(stat);        
     return 0;
 }
 
 HRESULT SevenzipInStream::AttachOpenChannel(Tcl_Obj *channel) {
-    DEBUGLOG(this << " SevenzipInStream::AttachOpenChannel " << Tcl_GetString(channel));
-    if (tclChannel || usechannel)
+    DEBUGLOG(this << " SevenzipInStream::AttachOpenChannel " << (channel ? Tcl_GetString(channel) : "NULL"));
+    if (tclChannel || attached)
         return S_FALSE;
 
     tclChannel = getOpenChannel(tclInterp, channel, false);
     if (!tclChannel)
         return E_FAIL;
-    usechannel = true;
+    attached = true;
     return S_OK;
 };
 
 HRESULT SevenzipInStream::AttachFileChannel(Tcl_Obj *filename) {
-    DEBUGLOG(this << " SevenzipInStream::AttachFileChannel " << Tcl_GetString(filename));
-    if (tclChannel || usechannel)
+    DEBUGLOG(this << " SevenzipInStream::AttachFileChannel " << (filename ? Tcl_GetString(filename) : "NULL"));
+    if (tclChannel || attached)
         return S_FALSE;
 
     tclChannel = getFileChannel(tclInterp, filename, true);
     if (!tclChannel)
         return E_FAIL;
-    usechannel = true;
+    attached = true;
     return S_OK;
 };
 
 Tcl_Channel SevenzipInStream::DetachChannel() {
-    DEBUGLOG(this << " SevenzipInStream::DetachChannel");
+    DEBUGLOG(this << " SevenzipInStream::DetachChannel channel " << tclChannel << " attached " << attached);
     if (!tclChannel)
         return NULL;
 
     Tcl_Channel channel = tclChannel;
     tclChannel = NULL;
-    usechannel = false;
+    attached = false;
     return channel;
 };
 
@@ -176,7 +180,7 @@ Tcl_StatBuf *SevenzipInStream::getStatBuf(const wchar_t* pathname) {
 
 
 SevenzipOutStream::SevenzipOutStream(Tcl_Interp *interp):
-        tclInterp(interp), tclChannel(NULL), usechannel(false) {
+        tclInterp(interp), tclChannel(NULL), attached(false) {
     DEBUGLOG(this << " SevenzipOutStream");
 }
 
@@ -186,15 +190,15 @@ SevenzipOutStream::~SevenzipOutStream() {
 }
 
 HRESULT SevenzipOutStream::Open(const wchar_t *filename) {
-    DEBUGLOG(this << " SevenzipOutStream::Open " << filename);
-    if (usechannel)
+    DEBUGLOG(this << " SevenzipOutStream::Open " << (filename ? filename : L"NULL"));
+    if (attached)
         return S_OK;
     if (!filename)
         return E_FAIL;
 
     tclChannel = getFileChannel(tclInterp,
             Tcl_NewStringObj(sevenzip::toBytes(filename), -1), true);
-    DEBUGLOG(this << " SevenzipOutStream::Opened " << tclChannel << " errno " << Tcl_GetErrno());
+    DEBUGLOG(this << " SevenzipOutStream::Open channel " << tclChannel << " errno " << Tcl_GetErrno());
     return sevenzip::getResult(tclChannel);
 }
 
@@ -227,16 +231,16 @@ HRESULT SevenzipOutStream::Seek(Int64 offset, UInt32 origin, UInt64 &position) {
 }
 
 void SevenzipOutStream::Close() {
-    DEBUGLOG(this << " SevenzipOutStream::Close");
-    if (tclChannel && !usechannel) {
+    DEBUGLOG(this << " SevenzipOutStream::Close channel " << tclChannel << " attached " << attached);
+    if (tclChannel && !attached) {
         Tcl_Close(tclInterp, tclChannel);
         tclChannel = NULL;
     }
 }
 
 HRESULT SevenzipOutStream::Mkdir(const wchar_t* pathname) {
-    DEBUGLOG(this << " SevenzipOutStream::Mkdir " << pathname);
-    if (usechannel)
+    DEBUGLOG(this << " SevenzipOutStream::Mkdir " << (pathname ? pathname : L"NULL"));
+    if (attached)
         return S_OK;
     return createDirectory(tclInterp,
             Tcl_NewStringObj(sevenzip::toBytes(pathname), -1)) ? S_OK : S_FALSE;
@@ -248,42 +252,42 @@ HRESULT SevenzipOutStream::Mkdir(const wchar_t* pathname) {
 // }
 
 HRESULT SevenzipOutStream::SetMode(const wchar_t* pathname, UInt32 mode) {
-    DEBUGLOG(this << " SevenzipOutStream::SetMode " << pathname << " " << std::oct << mode);
-    if (usechannel)
+    DEBUGLOG(this << " SevenzipOutStream::SetMode " << (pathname ? pathname : L"NULL") << " " << std::oct << mode);
+    if (attached)
         return S_OK;
     // TODO: implement mode setting
     return S_FALSE;
 }
 
 HRESULT SevenzipOutStream::SetTime(const wchar_t* pathname, UInt32 time) {
-    DEBUGLOG(this << " SevenzipOutStream::SetTime " << pathname << " " << time);
-    if (usechannel)
+    DEBUGLOG(this << " SevenzipOutStream::SetTime " << (pathname ? pathname : L"NULL") << " " << time);
+    if (attached)
         return S_OK;
     // TODO: implement time setting
     return S_FALSE;
 }
 
 HRESULT SevenzipOutStream::AttachOpenChannel(Tcl_Obj *channel) {
-    DEBUGLOG(this << " SevenzipOutStream::AttachOpenChannel " << Tcl_GetString(channel));
-    if (tclChannel || usechannel)
+    DEBUGLOG(this << " SevenzipOutStream::AttachOpenChannel " << (channel ? Tcl_GetString(channel) : "NULL"));
+    if (tclChannel || attached)
         return S_FALSE;
 
     tclChannel = getOpenChannel(tclInterp, channel, true);
     if (!tclChannel)
         return E_FAIL;
-    usechannel = true;
+    attached = true;
     return S_OK;
 };
 
 HRESULT SevenzipOutStream::AttachFileChannel(Tcl_Obj *filename) {
-    DEBUGLOG(this << " SevenzipOutStream::AttachFileChannel " << Tcl_GetString(filename));
-    if (tclChannel || usechannel)
+    DEBUGLOG(this << " SevenzipOutStream::AttachFileChannel " << (filename ? Tcl_GetString(filename) : "NULL"));
+    if (tclChannel || attached)
         return S_FALSE;
 
     tclChannel = getFileChannel(tclInterp, filename, true);
     if (!tclChannel)
         return E_FAIL;
-    usechannel = true;
+    attached = true;
     return S_OK;
 };
 
@@ -293,7 +297,7 @@ Tcl_Channel SevenzipOutStream::DetachChannel() {
         return NULL;
     Tcl_Channel channel = tclChannel;
     tclChannel = NULL;
-    usechannel = false;
+    attached = false;
     return channel;
 };
 

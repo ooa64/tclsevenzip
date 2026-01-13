@@ -31,7 +31,7 @@ private:
 
     Tcl_Interp *tclInterp;
     Tcl_Channel tclChannel;
-    bool usechannel;
+    bool attached;
 
     Tcl_StatBuf *getStatBuf(const wchar_t* pathname);
     Tcl_StatBuf *statBuf;
@@ -63,7 +63,7 @@ private:
 
     Tcl_Interp *tclInterp;
     Tcl_Channel tclChannel;
-    bool usechannel;
+    bool attached;
 };
 
 int lastError(Tcl_Interp *interp, HRESULT hr);

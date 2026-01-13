@@ -83,9 +83,18 @@ test sevenzip2-2.0 {create syntax} -body {
 
 test sevenzip2-2.2 {create archive of invalid type} -constraints {have7zip} -body {
     sevenzip create -forcetype xxx xxx {}
-} -returnCodes 1 -result {not supported}
+} -returnCodes 1 -match nocase -result {Not supported}
 
-test sevenzip2-2.3 {create empty default archive (7z)} -constraints {have7zip haveMemchan} -setup {
+test sevenzip2-2.3 {create empty default archive (7z)} -constraints {have7zip} -setup {
+    set f [file join [temporaryDirectory] sevenzip2.7z]
+} -cleanup {
+    catch {file delete -force $f}; unset f
+} -body {
+    sevenzip create $f {}
+    expr {[file size $f] > 0}
+} -result 1
+
+test sevenzip2-2.3m {create empty default archive (7z)} -constraints {have7zip haveMemchan} -setup {
     set c [::tcl::chan::memchan]
 } -cleanup {
     close $c; unset c
@@ -94,7 +103,16 @@ test sevenzip2-2.3 {create empty default archive (7z)} -constraints {have7zip ha
     expr {[tell $c] > 0}
 } -result 1
 
-test sevenzip2-2.4 {create simple default archive (7z)} -constraints {have7zip haveMemchan} -setup {
+test sevenzip2-2.4 {create simple file archive (7z)} -constraints {have7zip} -setup {
+    set f [file join [temporaryDirectory] sevenzip2.7z]
+} -cleanup {
+    catch {file delete -force $f}; unset f
+} -body {
+    sevenzip create -forcetype 7z $f [list [file join [testsDirectory] files test.txt]]
+    expr {[file size $f] > 0}
+} -result 1
+
+test sevenzip2-2.4m {create simple default archive (7z)} -constraints {have7zip haveMemchan} -setup {
     set c [::tcl::chan::memchan]
 } -cleanup {
     close $c; unset c
@@ -103,28 +121,54 @@ test sevenzip2-2.4 {create simple default archive (7z)} -constraints {have7zip h
     expr {[tell $c] > 0}
 } -result 1
 
-set {sevenzip2-2.5.#} 0
-test sevenzip2-2.5.# {create simple archives of different types} {have7zip haveMemchan} {
-    set {sevenzip2-2.5.#} 1
+set {sevenzip2-2.5-exts} {}
+test sevenzip2-2.5 {create simple archives of different types} have7zip {
+    set {sevenzip2-2.5-exts} [lmap e [sevenzip extensions] {if {[sevenzip updatable $e]} {set e} else continue}]
+    expr {[llength [set sevenzip2-2.5-exts]] > 0}
 } 1
 
-if {[set {sevenzip2-2.5.#}]} {
+foreach ext [set {sevenzip2-2.5-exts}] {
     set l [list [file join [testsDirectory] files test.txt]]
-    foreach ext [lmap e [sevenzip extensions] {if {[sevenzip updatable $e]} {set e} else continue}] {
-        test sevenzip2-2.5.$ext {create simple $ext archive} -setup {
-            set c [::tcl::chan::memchan]
-        } -cleanup {
-            close $c; unset c
-        } -body {
-            sevenzip create -forcetype $ext -channel $c $l
-            expr {[tell $c] > 0}
-        } -result 1
-        unset ext
-    }
+
+    test sevenzip2-2.5.$ext {create simple $ext archive} -setup {
+        set f [file join [temporaryDirectory] sevenzip2.7z]
+    } -cleanup {
+        catch {file delete -force $f}; unset f
+    } -body {
+        sevenzip create -forcetype $ext $f $l
+        expr {[file size $f] > 0}
+    } -result 1
+
+    test sevenzip2-2.5m.$ext {create simple $ext archive} -constraints {haveMemchan} -setup {
+        set c [::tcl::chan::memchan]
+    } -cleanup {
+        close $c; unset c
+    } -body {
+        sevenzip create -forcetype $ext -channel $c $l
+        expr {[tell $c] > 0}
+    } -result 1
+
+    unset ext
     unset l
 }
 
+unset {sevenzip2-2.5-exts}
+
 test sevenzip2-2.6 {create/list simple archive (7z)} -constraints {have7zip haveMemchan} -setup {
+    set l [list [file join [testsDirectory] files test.txt]]
+    set f [file join [temporaryDirectory] sevenzip2.7z]
+    set z ""
+} -cleanup {
+    catch {rename $z ""}; unset z
+    catch {file delete -force $f}; unset f
+    unset l
+} -body {
+    sevenzip create -forcetype 7z $f $l
+    set z [sevenzip open -forcetype 7z $f]
+    $z list
+} -result [list [file join [testsDirectory] files test.txt]]
+
+test sevenzip2-2.6m {create/list simple archive (7z)} -constraints {have7zip haveMemchan} -setup {
     set l [list [file join [testsDirectory] files test.txt]]
     set c [::tcl::chan::memchan]
     set z ""
@@ -141,6 +185,23 @@ test sevenzip2-2.6 {create/list simple archive (7z)} -constraints {have7zip have
 
 test sevenzip2-2.7 {create/extract simple archive (7z)} -constraints {have7zip haveMemchan} -setup {
     set l [list [file join [testsDirectory] files test.txt]]
+    set f [file join [temporaryDirectory] sevenzip2.7z]
+    set e [file join [temporaryDirectory] sevenzip2.txt]
+    set z ""
+} -cleanup {
+    catch {rename $z ""}; unset z
+    catch {file delete -force $e}; unset e
+    catch {file delete -force $f}; unset f
+    unset l
+} -body {
+    sevenzip create -forcetype 7z $f $l
+    set z [sevenzip open -forcetype 7z $f]
+    $z extract $e [lindex $l 0]
+    readFile $e
+} -result {test}
+
+test sevenzip2-2.7m {create/extract simple archive (7z)} -constraints {have7zip haveMemchan} -setup {
+    set l [list [file join [testsDirectory] files test.txt]]
     set c [::tcl::chan::memchan]
     set o [::tcl::chan::memchan]
     set z ""
@@ -158,99 +219,15 @@ test sevenzip2-2.7 {create/extract simple archive (7z)} -constraints {have7zip h
     read $o
 } -result {test}
 
-test sevenzip2-2.8.1 {create/extract encrypted archive (7z)} -constraints {have7zip haveMemchan} -setup {
+test sevenzip2-2.8 {create/extract encrypted archive (7z)} -constraints {have7zip} -setup {
     set l [list [file join [testsDirectory] files test.txt]]
-    set c [::tcl::chan::memchan]
-    set o [::tcl::chan::memchan]
+    set f [file join [temporaryDirectory] sevenzip2.7z]
+    set o [file join [temporaryDirectory] sevenzip2.txt]
     set z ""
 } -cleanup {
     catch {rename $z ""}; unset z
-    close $c; unset c
-    close $o; unset o
-    unset l
-} -body {
-    sevenzip create -forcetype 7z -password TEST -channel $c $l
-    seek $c 0 start
-    set z [sevenzip open -forcetype 7z -channel $c]
-    $z extract -channel $o [lindex $l 0]
-} -result {need password} -returnCodes 1
-
-test sevenzip2-2.8.2 {create/extract encrypted archive (7z)} -constraints {have7zip haveMemchan} -setup {
-    set l [list [file join [testsDirectory] files test.txt]]
-    set c [::tcl::chan::memchan]
-    set o [::tcl::chan::memchan]
-    set z ""
-} -cleanup {
-    catch {rename $z ""}; unset z
-    close $c; unset c
-    close $o; unset o
-    unset l
-} -body {
-    # sevenzip create -forcetype 7z -channel $c $l
-    sevenzip create -forcetype 7z -password TEST -channel $c $l
-    flush $c
-    seek $c 0 start
-    # set z [sevenzip open -forcetype 7z -channel $c]
-    set z [sevenzip open -forcetype 7z -password TEST -channel $c]
-    $z extract -channel $o [lindex $l 0]
-    seek $o 0 start
-    read $o
-} -result {test}
-
-test sevenzip2-2.8.3 {create/extract encrypted archive (7z)} -constraints {have7zip haveMemchan} -setup {
-    set l [list [file join [testsDirectory] files test.txt]]
-    set c [::tcl::chan::memchan]
-    set o [::tcl::chan::memchan]
-    set z ""
-} -cleanup {
-    catch {rename $z ""}; unset z
-    close $c; unset c
-    close $o; unset o
-    unset l
-} -body {
-    sevenzip create -forcetype 7z -password TEST -channel $c $l
-    seek $c 0 start
-    set z [sevenzip open -forcetype 7z -channel $c]
-    $z extract -password TEST -channel $o [lindex $l 0]
-    seek $o 0 start
-    read $o
-} -result {test}
-
-test sevenzip2-3.4 {create simple file archive (7z)} -constraints {have7zip} -setup {
-    set f [file join [temporaryDirectory] sevenzip2-3.4.7z]
-} -cleanup {
-    file delete -force $f; unset f
-} -body {
-    sevenzip create -forcetype 7z $f [list [file join [testsDirectory] files test.txt]]
-    expr {[file size $f] > 0}
-} -result 1
-
-test sevenzip2-3.7 {create/extract simple archive (7z)} -constraints {have7zip haveMemchan} -setup {
-    set l [list [file join [testsDirectory] files test.txt]]
-    set f [file join [temporaryDirectory] sevenzip2-3.7.7z]
-    set o [file join [temporaryDirectory] sevenzip2-3.7.txt]
-    set z ""
-} -cleanup {
-    catch {rename $z ""}; unset z
-    file delete -force $f; unset f
-    file delete -force $o; unset o
-    unset l
-} -body {
-    sevenzip create -forcetype 7z $f $l
-    set z [sevenzip open -forcetype 7z $f]
-    $z extract $o [lindex $l 0]
-    readFile $o    
-} -result {test}
-
-test sevenzip2-3.8 {create/extract encrypted archive (7z)} -constraints {have7zip} -setup {
-    set l [list [file join [testsDirectory] files test.txt]]
-    set f [file join [temporaryDirectory] sevenzip2-3.7.7z]
-    set o [file join [temporaryDirectory] sevenzip2-3.7.txt]
-    set z ""
-} -cleanup {
-    catch {rename $z ""}; unset z
-    file delete -force $f; unset f
-    file delete -force $o; unset o
+    catch {file delete -force $f}; unset f
+    catch {file delete -force $o}; unset o
     unset l
 } -body {
     sevenzip create -forcetype 7z -password TEST $f $l
@@ -259,26 +236,98 @@ test sevenzip2-3.8 {create/extract encrypted archive (7z)} -constraints {have7zi
     readFile $o
 } -result {test}
 
-test sevenzip2-3.8.1 {create/extract encrypted item (7z)} -constraints {have7zip} -setup {
+test sevenzip2-2.8m {create/extract encrypted archive (7z)} -constraints {have7zip haveMemchan frozenMemchanBug} -setup {
     set l [list [file join [testsDirectory] files test.txt]]
-    set f [file join [temporaryDirectory] sevenzip2-3.7.7z]
-    set o [file join [temporaryDirectory] sevenzip2-3.7.txt]
+    set c [::tcl::chan::memchan]
+    set o [::tcl::chan::memchan]
+#     fconfigure $c -translation binary -encoding binary -buffering none
+#     fconfigure $o -translation binary -encoding binary -buffering none
+#     puts MEMCHAN_C:[fconfigure $c]
+#     puts MEMCHAN_O:[fconfigure $o]
     set z ""
 } -cleanup {
     catch {rename $z ""}; unset z
-    file delete -force $f; unset f
-    file delete -force $o; unset o
+    close $c; unset c
+    close $o; unset o
+    unset l
+} -body {
+    sevenzip create -forcetype 7z -password TEST -channel $c $l
+    seek $c 0 start
+    set z [sevenzip open -forcetype 7z -password TEST -channel $c]
+    $z extract -channel $o [lindex $l 0]
+    seek $o 0 start
+    read $o
+} -result {test}
+
+test sevenzip2-2.8.1 {create/extract encrypted item no password (7z)} -constraints {have7zip} -setup {
+    set l [list [file join [testsDirectory] files test.txt]]
+    set f [file join [temporaryDirectory] sevenzip2.7z]
+    set o [file join [temporaryDirectory] sevenzip2.txt]
+    set z ""
+} -cleanup {
+    catch {rename $z ""}; unset z
+    catch {file delete -force $f}; unset f
+    catch {file delete -force $o}; unset o
     unset l
 } -body {
     sevenzip create -forcetype 7z -password TEST $f $l
     set z [sevenzip open -forcetype 7z $f]
-    $z extract -password TEST $o [lindex $l 0]
-    readFile $o
-} -result {test}
+    $z extract $o [lindex $l 0]
+} -result {Need password} -match nocase -returnCodes 1
 
-test sevenzip2-4.0 {create complex archive (7z)} -constraints {have7zip haveMemchan} -setup {
+test sevenzip2-2.8.1m {create/extract encrypted archive no password (7z)} -constraints {have7zip haveMemchan} -setup {
+    set l [list [file join [testsDirectory] files test.txt]]
     set c [::tcl::chan::memchan]
-    set d "sevenzip2-4.0"
+    set o [::tcl::chan::memchan]
+    set z ""
+} -cleanup {
+    catch {rename $z ""}; unset z
+    close $c; unset c
+    close $o; unset o
+    unset l
+} -body {
+    sevenzip create -forcetype 7z -password TEST -channel $c $l
+    seek $c 0 start
+    set z [sevenzip open -forcetype 7z -channel $c]
+    $z extract -channel $o [lindex $l 0]
+} -result {Need password} -match nocase -returnCodes 1
+
+test sevenzip2-2.8.2 {create/extract encrypted item invalid password (7z)} -constraints {have7zip} -setup {
+    set l [list [file join [testsDirectory] files test.txt]]
+    set f [file join [temporaryDirectory] sevenzip2.7z]
+    set o [file join [temporaryDirectory] sevenzip2.txt]
+    set z ""
+} -cleanup {
+    catch {rename $z ""}; unset z
+    catch {file delete -force $f}; unset f
+    catch {file delete -force $o}; unset o
+    unset l
+} -body {
+    sevenzip create -forcetype 7z -password TEST $f $l
+    set z [sevenzip open -forcetype 7z -password TESTX $f]
+    $z extract $o [lindex $l 0]
+} -result {Unspecified error} -returnCodes 1
+
+test sevenzip2-2.8.2m {create/extract encrypted archive no password (7z)} -constraints {have7zip haveMemchan frozenMemchanBug} -setup {
+    set l [list [file join [testsDirectory] files test.txt]]
+    set c [::tcl::chan::memchan]
+    set o [::tcl::chan::memchan]
+    set z ""
+} -cleanup {
+    catch {rename $z ""}; unset z
+    close $c; unset c
+    close $o; unset o
+    unset l
+} -body {
+    sevenzip create -forcetype 7z -password TEST -channel $c $l
+    seek $c 0 start
+    set z [sevenzip open -forcetype 7z -password TESTX -channel $c]
+    $z extract -channel $o [lindex $l 0]
+} -result {Unspecified error} -returnCodes 1
+
+test sevenzip2-2.9 {create complex archive (7z)} -constraints {have7zip haveMemchan} -setup {
+    set c [::tcl::chan::memchan]
+    set d "sevenzip2"
     set z ""
     set l {}
     set w [pwd]
@@ -290,7 +339,7 @@ test sevenzip2-4.0 {create complex archive (7z)} -constraints {have7zip haveMemc
     writeFile [file join $d subdir1 file2.txt] "This is file 2."; lappend l [file join $d subdir1 file2.txt]
     writeFile [file join $d subdir2 file3.txt] "This is file 3."; lappend l [file join $d subdir2 file3.txt]
 } -cleanup {
-    file delete -force $d; unset d
+    catch {file delete -force $d}; unset d
     catch {rename $z ""}; unset z
     close $c; unset c
     cd $w; unset w
@@ -300,12 +349,13 @@ test sevenzip2-4.0 {create complex archive (7z)} -constraints {have7zip haveMemc
     seek $c 0 start
     set z [sevenzip open -forcetype 7z -channel $c]
     join [$z list] \n
-} -result {sevenzip2-4.0
-sevenzip2-4.0/subdir1
-sevenzip2-4.0/subdir2
-sevenzip2-4.0/file1.txt
-sevenzip2-4.0/subdir1/file2.txt
-sevenzip2-4.0/subdir2/file3.txt}
+} -result {sevenzip2
+sevenzip2/subdir1
+sevenzip2/subdir2
+sevenzip2/file1.txt
+sevenzip2/subdir1/file2.txt
+sevenzip2/subdir2/file3.txt}
+
 
 cleanupTests
 return

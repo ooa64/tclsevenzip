@@ -30,6 +30,7 @@ catch {
         sevenzip initialize            
     }
 }
+customMatch nocase {string equal -nocase}
 testConstraint usingTcl8 [expr {$tcl_version < 9.0}]
 testConstraint usingTcl9 [expr {$tcl_version >= 9.0}]
 testConstraint have7zip [sevenzip isinitialized]
@@ -84,7 +85,7 @@ test vfsZip-1.1 "mount non-existent zip file" -constraints {zipfs} -setup {
     set mnt [vfs::zip::Mount $file localmount]
 } -cleanup {
     removeFile $file
-} -returnCodes {error} -result {not supported}
+} -returnCodes {error} -match nocase -result {Not supported}
 
 test vfsZip-1.2 "mount invalid zip file"  -constraints {zipfs} -setup {
     set file [makeFile {random text} vfszip.zip]
@@ -92,7 +93,7 @@ test vfsZip-1.2 "mount invalid zip file"  -constraints {zipfs} -setup {
     set mnt [vfs::zip::Mount $file localmount]
 } -cleanup {
     removeFile $file
-} -returnCodes {error} -result {not supported}
+} -returnCodes {error} -match nocase -result {Not supported}
 
 test vfsZip-1.3 "mount zipfile" -constraints {zipfs zipexe} -body {
     vfs::zip::Mount zipfs.zip local

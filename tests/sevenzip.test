@@ -37,6 +37,8 @@ if {[info proc writeFile] eq ""} {
     }
 }
 
+customMatch nocase {string equal -nocase}
+
 testConstraint have7zip [sevenzip isinitialized]
 testConstraint haveMemchan [expr {![catch {package require tcl::chan::memchan}]}]
 testConstraint encodingOk [expr {"тест" eq "\u0442\u0435\u0441\u0442"}]
@@ -117,7 +119,7 @@ test sevenzip-2.1 {extensions} -constraints have7zip -body {
 
 test sevenzip-2.1.1 {updatable} -constraints have7zip -body {
     sevenzip updatable txt
-} -returnCodes 1 -result {not supported}
+} -returnCodes 1 -match nocase -result {Not supported}
 
 test sevenzip-2.1.2 {updatable} -constraints have7zip -body {
     sevenzip updatable 7z
@@ -134,15 +136,15 @@ test sevenzip-2.2.1 {open notexistent} -constraints have7zip -body {
 
 test sevenzip-2.2.2 {open unknown format} -constraints have7zip -body {
     sevenzip open -forcetype txt [file join [testsDirectory] files test.txt]
-} -returnCodes 1 -result {not supported}
+} -returnCodes 1 -match nocase -result {Not supported}
 
 test sevenzip-2.2.3 {open invalid format} -constraints have7zip -body {
     sevenzip open -forcetype 7z [file join [testsDirectory] files test.txt]
-} -returnCodes 1 -result {not supported}
+} -returnCodes 1 -match nocase -result {Not supported}
 
 test sevenzip-2.2.4 {open encrypted header, no password} -constraints have7zip -body {
     sevenzip open [file join [testsDirectory] files testPWD0.7z]
-} -returnCodes 1 -result {need password}
+} -returnCodes 1 -match nocase -result {Need password}
 
 test sevenzip-2.2.5 {open unknown channel} -constraints have7zip -body {
     sevenzip open -c xxx
@@ -671,7 +673,7 @@ test sevenzip-5.8 {extract encrypted data error} -constraints {have7zip} -setup 
 } -cleanup {
     $cmd close
     file delete $out
-} -result {need password} -returnCodes 1
+} -result {Need password} -match nocase -returnCodes 1
 # -result {}
 
 test sevenzip-5.9 {extract encrypted data with archive password} -constraints {have7zip} -setup {
@@ -688,9 +690,9 @@ test sevenzip-5.9 {extract encrypted data with archive password} -constraints {h
 
 test sevenzip-5.9.1 {extract encrypted data with invalid archive password} -constraints {have7zip} -body {
     sevenzip open -p TESTX [file join [testsDirectory] files testPWD0.7z]
-} -result {not supported} -returnCodes 1
+} -match nocase -result {Not supported} -returnCodes 1
 
-test sevenzip-5.10 {extract data with archive password} -constraints {have7zip} -setup {
+test sevenzip-5.10 {extract data with item password using archive password} -constraints {have7zip} -setup {
     set cmd [sevenzip open -p TEST [file join [testsDirectory] files testPWD1.7z]]
     set out [file join [temporaryDirectory] test.txt]
     writeFile $out "TEST"
@@ -702,7 +704,7 @@ test sevenzip-5.10 {extract data with archive password} -constraints {have7zip} 
     file delete $out
 } -result {test}
 
-test sevenzip-5.10.1 {extract data with invalid archive password} -constraints {have7zip} -setup {
+test sevenzip-5.10.1 {extract data with item password using invalid archive password} -constraints {have7zip} -setup {
     set cmd [sevenzip open -p TESTX [file join [testsDirectory] files testPWD1.7z]]
     set out [file join [temporaryDirectory] test.txt]
     writeFile $out "TEST"
@@ -712,7 +714,7 @@ test sevenzip-5.10.1 {extract data with invalid archive password} -constraints {
 } -cleanup {
     $cmd close
     file delete $out
-} -result {test}
+} -result {Unspecified error} -returnCodes 1
 
 test sevenzip-5.11 {extract data with item password} -constraints {have7zip} -setup {
     set cmd [sevenzip open [file join [testsDirectory] files testPWD1.7z]]
@@ -736,7 +738,7 @@ test sevenzip-5.11.1 {extract data with item password} -constraints {have7zip} -
 } -cleanup {
     $cmd close
     file delete $out
-} -result {test}
+} -result {Unspecified error} -returnCodes 1
 
 test sevenzip-6.0 {open singlevolume with -m} -constraints {have7zip} -body {
     [sevenzip open -m [file join [testsDirectory] files test.7z]] close
@@ -744,7 +746,7 @@ test sevenzip-6.0 {open singlevolume with -m} -constraints {have7zip} -body {
 
 test sevenzip-6.1 {open multivolume w/o -m} -constraints {have7zip} -body {
     [sevenzip open [file join [testsDirectory] files testMVOL.7z.001]] close
-# -returnCodes 1 -result {not supported}
+# -returnCodes 1 -match nocase -result {Not supported}
 } -returnCodes 0 -result {}
 
 test sevenzip-6.2 {open multivolume} -constraints {have7zip} -body {

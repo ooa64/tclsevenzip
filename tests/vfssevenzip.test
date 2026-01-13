@@ -38,6 +38,7 @@ if {[info proc writeFile] eq ""} {
     }
 }
 
+customMatch nocase {string equal -nocase}
 testConstraint have7zip [sevenzip isinitialized]
 testConstraint encodingOk [expr {"тест" eq "\u0442\u0435\u0441\u0442"}]
 
@@ -69,7 +70,7 @@ test sevenzipvfs-1.1 {mount non-existent file} -constraints {have7zip vfs} -clea
 test sevenzipvfs-1.2 {mount unknown file} -constraints {have7zip vfs} -cleanup {
 } -body {
     vfs::sevenzip::Mount [file join [testsDirectory] files test.txt] mnt
-} -returnCodes 1 -result {not supported}
+} -returnCodes 1 -match nocase -result {Not supported}
 
 test sevenzipvfs-1.3 {mount/unmount simple file} -constraints {have7zip vfs} -cleanup {
     unset -nocomplain mnt

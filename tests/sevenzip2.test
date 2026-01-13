@@ -37,6 +37,7 @@ if {[info proc writeFile] eq ""} {
     }
 }
 
+customMatch nocase {string equal -nocase}
 testConstraint have7zip [sevenzip isinitialized]
 testConstraint haveMemchan [expr {![catch {package require tcl::chan::memchan}]}]
 testConstraint encodingOk [expr {"тест" eq "\u0442\u0435\u0441\u0442"}]

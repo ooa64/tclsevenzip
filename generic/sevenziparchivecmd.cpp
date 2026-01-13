@@ -151,7 +151,7 @@ static char *Path_WindowsPathToUnixPath(char *path);
 
 SevenzipArchiveCmd::SevenzipArchiveCmd (Tcl_Interp *interp, const char *name, TclCmd *parent) :
         TclCmd(interp, name, parent), archive() {
-    DEBUGLOG(this << " SevenzipArchiveCmd " << name);
+    DEBUGLOG(this << " SevenzipArchiveCmd " << (name ? name : "NULL"));
 }
 
 SevenzipArchiveCmd::~SevenzipArchiveCmd() {
@@ -175,7 +175,8 @@ HRESULT SevenzipArchiveCmd::Open(sevenzip::Lib& lib, SevenzipInStream* stream,
 
 HRESULT SevenzipArchiveCmd::Open(sevenzip::Lib& lib, SevenzipInStream* stream,
         Tcl_Obj* filename, Tcl_Obj* password, int formatIndex) {
-    DEBUGLOG(this << " SevenzipArchiveCmd::Open " << (filename ? Tcl_GetString(filename) : "NULL")
+    DEBUGLOG(this << " SevenzipArchiveCmd::Open"
+            << " " << (filename ? Tcl_GetString(filename) : "NULL")
             << " " << (password ? Tcl_GetString(password) : "NULL"));
     if (!stream)
         return E_FAIL;
@@ -411,7 +412,7 @@ int SevenzipArchiveCmd::Info(Tcl_Obj *info) {
                         : Tcl_ObjPrintf("prop%d", propId));
                 Tcl_ListObjAppendElement(NULL, info, value);
             } else {
-                DEBUGLOG(this << " SevenzipArchiveCmd unhandled prop id " << propId << " type " << propType);
+                // DEBUGLOG(this << " SevenzipArchiveCmd unhandled prop id " << propId << " type " << propType);
             }
         }
     }
@@ -456,6 +457,8 @@ int SevenzipArchiveCmd::Info(Tcl_Obj *info) {
 }
 
 int SevenzipArchiveCmd::List(Tcl_Obj *list, Tcl_Obj *pattern, char type, int flags, bool info) {
+    DEBUGLOG(this << " SevenzipArchiveCmd::List " << (pattern ? Tcl_GetString(pattern) : "NULL")
+            << " " << type << " " << flags << " " << info);
     unsigned int count = archive.getNumberOfItems();
     for (unsigned int i = 0; i < count; ++i) {
         if (type == 'd' && !archive.getItemIsDir(i))
@@ -535,7 +538,7 @@ int SevenzipArchiveCmd::List(Tcl_Obj *list, Tcl_Obj *pattern, char type, int fla
                                     : Tcl_ObjPrintf("prop%d", propId));
                         Tcl_ListObjAppendElement(NULL, prop, value);
                     } else {
-                        DEBUGLOG(this << " SevenzipArchiveCmd unhandled item " << i << " prop id " << propId << " type " << propType);
+                        // DEBUGLOG(this << " SevenzipArchiveCmd unhandled item " << i << " prop id " << propId << " type " << propType);
                     }
                     if (propId == kpidIsDir)
                         haveIsDirProperty = true;
@@ -580,10 +583,11 @@ int SevenzipArchiveCmd::List(Tcl_Obj *list, Tcl_Obj *pattern, char type, int fla
 }
 
 int SevenzipArchiveCmd::Extract(Tcl_Obj *source, Tcl_Obj *destination, Tcl_Obj *password, bool usechannel) {
-    DEBUGLOG(this << " SevenzipArchiveCmd::Extract item \"" << Tcl_GetString(source)
-            << "\" to \"" << Tcl_GetString(destination) << "\""
-            << (password ? " with password" : " without password")
-            << (usechannel ? " using channel" : " without channel"));
+    DEBUGLOG(this << " SevenzipArchiveCmd::Extract"
+            << " " << (source ? Tcl_GetString(source) : "NULL")
+            << " " << (destination ? Tcl_GetString(destination) : "NULL")
+            << " " << (password ? Tcl_GetString(password) : "NULL")
+            << " " << usechannel);
     int result = TCL_OK;
     unsigned int count = archive.getNumberOfItems();
     if (count < 0)

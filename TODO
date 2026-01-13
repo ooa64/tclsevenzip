@@ -3,13 +3,17 @@ implement get/set size/mode/time with tests
 fix extraction with invalid password (SetOperationResult?)
 	tests sevenzip-5.10.1 and sevenzip-5.11.1
 
-change syntax to extract all(?):
-	handle extract ?-password password? ?-channel? pathOrChannel itemName - current
-	handle extract ?-password password? ?destination? - ?
-	handle extract ?-password password? ?-directory dir? ?itemsMask? - ?
+change syntax to extract:
+	handle extract ?-password password? ?-channel? pathOrChannel itemName - extract one item, current implementation
+	handle extract ?-password password? ?-directory dir? ?itemsMask? - extract items to joined dir and itemPath?
+	handle extract ?-password password? ?destination? - extract all items to destination?
 
 add formats command returns dictionary
 	use numeric types as format id for -forcetype
+
+fix create command feature
+	password cannot be set on item
+	properties cannot be set on item
 
 add create command option -directory:
 	sevenzip create ?-properties proplist? ?-forcetype type? ?-password password? ?-directory dir? ?-channel? pathOrChannel filesList

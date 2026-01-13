@@ -17,12 +17,14 @@ private:
 
     sevenzip::Lib lib;
 
-    int Initialize (Tcl_Obj * dll);
-    int SupportedExts (Tcl_Obj * exts);
+    int Initialize (Tcl_Obj *dll);
+    int SupportedExts (Tcl_Obj *exts);
+    int SupportedFormats (Tcl_Obj *formats);
     int OpenArchive(Tcl_Obj *command, Tcl_Obj *source,
             Tcl_Obj *password, int type, bool usechannel);
     int CreateArchive(Tcl_Obj *pathnames, Tcl_Obj *destination, 
             Tcl_Obj *password, int type, bool usechannel, Tcl_Obj *properties);
+    int GetFormat(Tcl_Obj *index, int &type);
 
     virtual int Command (int objc, Tcl_Obj * const objv[]);
 };

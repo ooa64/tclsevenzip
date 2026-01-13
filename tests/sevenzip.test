@@ -38,7 +38,6 @@ if {[info proc writeFile] eq ""} {
 }
 
 customMatch nocase {string equal -nocase}
-
 testConstraint have7zip [sevenzip isinitialized]
 testConstraint haveMemchan [expr {![catch {package require tcl::chan::memchan}]}]
 testConstraint encodingOk [expr {"тест" eq "\u0442\u0435\u0441\u0442"}]
@@ -55,9 +54,9 @@ test sevenzip-1.0 {syntax} -body {
 
 test sevenzip-1.1 {syntax} -body {
     sevenzip xxx
-} -returnCodes 1 -result {bad subcommand "xxx": must be initialize, isinitialized, extensions, updatable, open, or create}
+} -returnCodes 1 -result {bad subcommand "xxx": must be initialize, isinitialized, format, formats, extensions, updatable, open, or create}
 
-test sevenzip-1.2 {initialize syntax}  -body {
+test sevenzip-1.2.0 {initialize syntax}  -body {
     sevenzip initialize xxx xxx
 } -returnCodes 1 -result {wrong # args: should be "sevenzip initialize ?library?"}
 
@@ -65,15 +64,27 @@ test sevenzip-1.2.1 {initialized syntax}  -body {
     sevenzip isinitialized xxx
 } -returnCodes 1 -result {wrong # args: should be "sevenzip isinitialized"}
 
-test sevenzip-1.3 {extensions syntax}  -body {
+test sevenzip-1.3.0 {extensions syntax}  -body {
     sevenzip extensions xxx
 } -returnCodes 1 -result {wrong # args: should be "sevenzip extensions"}
 
-test sevenzip-1.3.1 {updatable syntax}  -body {
+test sevenzip-1.3.1 {formats syntax}  -body {
+    sevenzip formats xxx
+} -returnCodes 1 -result {wrong # args: should be "sevenzip formats"}
+
+test sevenzip-1.3.2 {formats syntax}  -body {
+    sevenzip format 
+} -returnCodes 1 -result {wrong # args: should be "sevenzip format extension"}
+
+test sevenzip-1.3.3 {formats syntax}  -body {
+    sevenzip format xxx xxx
+} -returnCodes 1 -result {wrong # args: should be "sevenzip format extension"}
+
+test sevenzip-1.3.4 {updatable syntax}  -body {
     sevenzip updatable
 } -returnCodes 1 -result {wrong # args: should be "sevenzip updatable type"}
 
-test sevenzip-1.3.2 {updatable syntax}  -body {
+test sevenzip-1.3.5 {updatable syntax}  -body {
     sevenzip updatable xxx xxx
 } -returnCodes 1 -result {wrong # args: should be "sevenzip updatable type"}
 
@@ -113,19 +124,39 @@ test sevenzip-2.0 {initialized} -body {
     sevenzip isinitialized
 } -result 1
 
-test sevenzip-2.1 {extensions} -constraints have7zip -body {
+test sevenzip-2.1.0 {extensions} -constraints have7zip -body {
     sevenzip extensions
 } -match regexp -result {\m7z\M}
 
-test sevenzip-2.1.1 {updatable} -constraints have7zip -body {
+test sevenzip-2.1.1 {formats} -constraints have7zip -body {
+    sevenzip formats
+} -match regexp -result {\{id \d+ name 7z updatable \d extensions [^\}]*\}}
+
+test sevenzip-2.1.2 {formart} -constraints have7zip -body {
+    sevenzip format txt
+} -result -1
+
+test sevenzip-2.1.3 {formart} -constraints have7zip -body {
+    expr {[sevenzip format 7z] >= 0}
+} -result 1
+
+test sevenzip-2.1.4 {updatable} -constraints have7zip -body {
     sevenzip updatable txt
 } -returnCodes 1 -match nocase -result {Not supported}
 
-test sevenzip-2.1.2 {updatable} -constraints have7zip -body {
+test sevenzip-2.1.5 {updatable} -constraints have7zip -body {
+    sevenzip updatable -1
+} -returnCodes 1 -match nocase -result {Not supported}
+
+test sevenzip-2.1.6 {updatable} -constraints have7zip -body {
+    sevenzip updatable 1000000
+} -returnCodes 1 -match nocase -result {Not supported}
+
+test sevenzip-2.1.7 {updatable} -constraints have7zip -body {
     sevenzip updatable 7z
 } -result 1
 
-test sevenzip-2.1.3 {updatable} -constraints have7zip -body {
+test sevenzip-2.1.8 {updatable} -constraints have7zip -body {
     sevenzip updatable img
 } -result 0
 
@@ -763,7 +794,7 @@ test sevenzip-6.3 {list multivolume} -constraints {have7zip} -setup {
 } -result {test test/test.txt}
 
 test sevenzip-6.4 {extract multivolume} -constraints {have7zip} -setup {
-    set cmd [sevenzip open -f 001 -m [file join [testsDirectory] files testMVOL.7z.001]]
+    set cmd [sevenzip open -f [sevenzip format "001"] -m [file join [testsDirectory] files testMVOL.7z.001]]
     set out [file join [temporaryDirectory] test.txt]
     catch {file delete $out}
     writeFile $out "TEST"

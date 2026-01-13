@@ -12,10 +12,10 @@
 
 int SevenzipCmd::Command (int objc, Tcl_Obj *const objv[]) {
     static const char *const commands[] = {
-        "initialize", "isinitialized", "extensions", "updatable", "open", "create", 0L
+        "initialize", "isinitialized", "format", "formats", "extensions", "updatable", "open", "create", 0L
     };
     enum commands {
-        cmInitialize, cmIsInitialized, cmExtensions, cmUpdatable, cmOpen, cmCreate
+        cmInitialize, cmIsInitialized, cmFormat, cmFormats, cmExtensions, cmUpdatable, cmOpen, cmCreate
     };
     int index;
 
@@ -52,6 +52,35 @@ int SevenzipCmd::Command (int objc, Tcl_Obj *const objv[]) {
 
         break;
 
+    case cmFormat:
+
+        if (objc == 3) {
+            if (!lib.isLoaded() && (Initialize(NULL) != TCL_OK))
+                return TCL_ERROR;
+            Tcl_SetObjResult(tclInterp, Tcl_NewIntObj(
+                    lib.getFormatByExtension(sevenzip::fromBytes(Tcl_GetString(objv[2])))));
+        } else {
+            Tcl_WrongNumArgs(tclInterp, 2, objv, "extension");
+            return TCL_ERROR;
+        } 
+
+        break;
+
+    case cmFormats:
+
+        if (objc == 2) {
+            if (!lib.isLoaded() && (Initialize(NULL) != TCL_OK))
+                return TCL_ERROR;
+            if (SupportedFormats(Tcl_GetObjResult(tclInterp)) != TCL_OK) {
+                return TCL_ERROR;
+            }
+        } else {
+            Tcl_WrongNumArgs(tclInterp, 2, objv, NULL);
+            return TCL_ERROR;
+        } 
+
+        break;
+
     case cmExtensions:
 
         if (objc == 2) {
@@ -72,10 +101,9 @@ int SevenzipCmd::Command (int objc, Tcl_Obj *const objv[]) {
         if (objc == 3) {
             if (!lib.isLoaded() && (Initialize(NULL) != TCL_OK))
                 return TCL_ERROR;
-            int type = lib.getFormatByExtension(
-                    sevenzip::fromBytes(Tcl_GetString(objv[2])));
-            if (type < 0)
-                return lastError(tclInterp, E_NOTSUPPORTED);
+            int type;
+            if (GetFormat(objv[2], type) != TCL_OK)
+                return TCL_ERROR;
             Tcl_SetObjResult(tclInterp, Tcl_NewBooleanObj(lib.getFormatUpdatable(type)));
         } else {
             Tcl_WrongNumArgs(tclInterp, 2, objv, "type");
@@ -149,11 +177,10 @@ int SevenzipCmd::Command (int objc, Tcl_Obj *const objv[]) {
                 return TCL_ERROR;
 
             int type = (usechannel || detecttype) ? -2 : -1;
-            if (type < 0 && forcetype) {
-                type = lib.getFormatByExtension(sevenzip::fromBytes(Tcl_GetString(forcetype)));
-                if (type < 0)
-                    return lastError(tclInterp, E_NOTSUPPORTED);
-            }
+            if (forcetype)
+                if (GetFormat(forcetype, type) != TCL_OK)
+                    return TCL_ERROR;
+
             static unsigned long archiveCounter = 0;
             auto command = Tcl_ObjPrintf("sevenzip%lu", archiveCounter++);
             return OpenArchive(command, objv[objc-1], password, type, usechannel);
@@ -229,11 +256,10 @@ int SevenzipCmd::Command (int objc, Tcl_Obj *const objv[]) {
                 return TCL_ERROR;
 
             int type = -1;
-            if (forcetype) {
-                type = lib.getFormatByExtension(sevenzip::fromBytes(Tcl_GetString(forcetype)));
-                if (type < 0)
-                    return lastError(tclInterp, E_NOTSUPPORTED);
-            }
+            if (forcetype)
+                if (GetFormat(forcetype, type) != TCL_OK)
+                    return TCL_ERROR;
+
             return CreateArchive(objv[objc-1], objv[objc-2], password, type, usechannel, properties);
         } else {
             Tcl_WrongNumArgs(tclInterp, 2, objv, "?options? path list");
@@ -260,7 +286,6 @@ int SevenzipCmd::Initialize (Tcl_Obj *dll) {
     }
     Tcl_SetObjResult(tclInterp, Tcl_NewStringObj(
             sevenzip::toBytes(lib.getLoadMessage()), -1));
-    // Tcl_SetObjResult(tclInterp, Tcl_NewStringObj("error loading 7z library", -1));
     return TCL_ERROR;
 }
 
@@ -280,7 +305,28 @@ int SevenzipCmd::SupportedExts (Tcl_Obj *exts) {
     }
     Tcl_SetObjResult(tclInterp, Tcl_NewStringObj(
             sevenzip::toBytes(sevenzip::getMessage(lastError(tclInterp, S_OK))), -1));
-    // Tcl_SetObjResult(tclInterp, Tcl_NewStringObj("error loading 7z library", -1));
+    return TCL_ERROR;
+}
+
+int SevenzipCmd::SupportedFormats (Tcl_Obj *formats) {
+    int n = lib.getNumberOfFormats();
+    if (n > 0) {
+        for (int i = 0; i < n; i++) {
+            Tcl_Obj *format = Tcl_NewObj();
+            Tcl_ListObjAppendElement(NULL, format, Tcl_NewStringObj("id", -1));
+            Tcl_ListObjAppendElement(NULL, format, Tcl_NewIntObj(i));
+            Tcl_ListObjAppendElement(NULL, format, Tcl_NewStringObj("name", -1));
+            Tcl_ListObjAppendElement(NULL, format, Tcl_NewStringObj(sevenzip::toBytes(lib.getFormatName(i)), -1));
+            Tcl_ListObjAppendElement(NULL, format, Tcl_NewStringObj("updatable", -1));
+            Tcl_ListObjAppendElement(NULL, format, Tcl_NewBooleanObj(lib.getFormatUpdatable(i)));
+            Tcl_ListObjAppendElement(NULL, format, Tcl_NewStringObj("extensions", -1));
+            Tcl_ListObjAppendElement(NULL, format, Tcl_NewStringObj(sevenzip::toBytes(lib.getFormatExtensions(i)), -1));
+            Tcl_ListObjAppendElement(tclInterp, formats, format);
+        }
+        return TCL_OK;
+    }
+    Tcl_SetObjResult(tclInterp, Tcl_NewStringObj(
+            sevenzip::toBytes(sevenzip::getMessage(lastError(tclInterp, S_OK))), -1));
     return TCL_ERROR;
 }
 
@@ -361,3 +407,14 @@ int SevenzipCmd::CreateArchive(Tcl_Obj *pathnames, Tcl_Obj *destination,
     return TCL_OK;
 }
 
+int SevenzipCmd::GetFormat(Tcl_Obj *index, int &type) {
+    if (Tcl_GetIntFromObj(NULL, index, &type) == TCL_OK) {
+        if (type < 0 || type >= lib.getNumberOfFormats())
+            return lastError(tclInterp, E_NOTSUPPORTED);
+    } else {
+        type = lib.getFormatByExtension(sevenzip::fromBytes(Tcl_GetString(index)));
+        if (type < 0)
+            return lastError(tclInterp, E_NOTSUPPORTED);
+    }
+    return TCL_OK;
+}

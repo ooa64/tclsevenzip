@@ -21,6 +21,7 @@ public:
     virtual bool IsDir(const wchar_t *pathname) override;
     virtual UInt64 GetSize(const wchar_t *pathname) override;
     virtual UInt32 GetMode(const wchar_t *pathname) override;
+    virtual UInt32 GetAttr(const wchar_t *pathname) override;
     virtual UInt32 GetTime(const wchar_t *pathname) override;
 
     HRESULT AttachOpenChannel(Tcl_Obj *channel);
@@ -53,6 +54,7 @@ public:
     virtual HRESULT Mkdir(const wchar_t* pathname) override;
     // virtual HRESULT SetSize(const wchar_t* pathname, UInt64 size) override;
     virtual HRESULT SetMode(const wchar_t* pathname, UInt32 mode) override;
+    virtual HRESULT SetAttr(const wchar_t* pathname, UInt32 attr) override;
     virtual HRESULT SetTime(const wchar_t* pathname, UInt32 time) override;
 
     HRESULT AttachOpenChannel(Tcl_Obj *channel);

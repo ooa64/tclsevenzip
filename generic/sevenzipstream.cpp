@@ -15,6 +15,11 @@
 #   define DEBUGLOG(_x_)
 #endif
 
+enum {ATTR_READONLY, ATTR_HIDDEN, ATTR_SYSTEM, ATTR_ARCHIVE, ATTR_COUNT};
+static char* const attrStrings[ATTR_COUNT] = {"-readonly", "-hidden", "-system", "-archive"};
+static UInt32 attrMasks[ATTR_COUNT] = {0x01, 0x02, 0x04, 0x020};
+static void getAttrIndices(Tcl_Obj *name, int *indices);
+
 SevenzipInStream::SevenzipInStream(Tcl_Interp *interp) : 
         tclInterp(interp), tclChannel(NULL), attached(false),
         statBuf(Tcl_AllocStatBuf()), statPath(NULL) {
@@ -104,13 +109,40 @@ UInt64 SevenzipInStream::GetSize(const wchar_t* pathname) {
 }
 
 UInt32 SevenzipInStream::GetMode(const wchar_t *pathname) {
-    DEBUGLOG(this << "  SevenzipInStream::GetMode " << (pathname ? pathname : L"NULL"));
+    DEBUGLOG(this << " SevenzipInStream::GetMode " << (pathname ? pathname : L"NULL"));
     if (attached)
         return 0;
     auto *stat = getStatBuf(pathname);
     if (stat)
         return Tcl_GetModeFromStat(stat);
     return 0;
+}
+
+UInt32 SevenzipInStream::GetAttr(const wchar_t *pathname) {
+    DEBUGLOG(this << " SevenzipInStream::GetAttr " << (pathname ? pathname : L"NULL"));
+    if (!pathname)
+        return 0;
+    if (attached)
+        return 0;
+
+    UInt32 attr = 0;
+    int indices[ATTR_COUNT];
+    Tcl_Obj *name = Tcl_NewStringObj(sevenzip::toBytes(pathname), -1);
+    Tcl_IncrRefCount(name);
+    getAttrIndices(name, indices);
+    for (int i = 0; i < ATTR_COUNT; i++)
+        if (indices[i] >= 0) {
+            int attrSet;
+            Tcl_Obj *attrValue;
+            if (Tcl_FSFileAttrsGet(NULL, indices[i], name, &attrValue) != TCL_OK)
+                continue;
+            if (Tcl_GetBooleanFromObj(NULL, attrValue, &attrSet) != TCL_OK)
+                continue;
+            if (attrSet)
+                attr |= attrMasks[i];
+        }
+    Tcl_DecrRefCount(name);
+    return attr;
 }
 
 UInt32 SevenzipInStream::GetTime(const wchar_t *pathname) {
@@ -259,6 +291,29 @@ HRESULT SevenzipOutStream::SetMode(const wchar_t* pathname, UInt32 mode) {
     return S_FALSE;
 }
 
+HRESULT SevenzipOutStream::SetAttr(const wchar_t* pathname, UInt32 attr) {
+    DEBUGLOG(this << " SevenzipOutStream::SetAttr " << (pathname ? pathname : L"NULL") << " " << std::hex << attr);
+    if (!pathname)
+        return 0;
+    if (attached)
+        return 0;
+
+    int indices[ATTR_COUNT];
+    Tcl_Obj *name = Tcl_NewStringObj(sevenzip::toBytes(pathname), -1);
+    Tcl_IncrRefCount(name);
+    getAttrIndices(name, indices);
+    for (int i = 0; i < ATTR_COUNT; i++) {
+        if ((attr & attrMasks[i]) && indices[i] >= 0) {
+            Tcl_Obj *attrValue = Tcl_NewBooleanObj(true);
+            Tcl_IncrRefCount(attrValue);
+            Tcl_FSFileAttrsSet(NULL, indices[i], name, attrValue);
+            Tcl_DecrRefCount(attrValue);
+        }
+    }
+    Tcl_DecrRefCount(name);
+    return S_OK;
+}
+
 HRESULT SevenzipOutStream::SetTime(const wchar_t* pathname, UInt32 time) {
     DEBUGLOG(this << " SevenzipOutStream::SetTime " << (pathname ? pathname : L"NULL") << " " << time);
     if (attached)
@@ -346,4 +401,35 @@ Tcl_Channel getFileChannel(Tcl_Interp *tclInterp, Tcl_Obj *filename, bool writab
     }
     Tcl_DecrRefCount(filename);
     return tclChannel;
+}
+
+static void getAttrIndices(Tcl_Obj *name, int *indices) {
+    for (int i = 0; i < ATTR_COUNT; i++)
+        indices[i] = -1;
+    const char **strings = NULL;
+    Tcl_Obj *stringsList = NULL;
+    strings = (const char **)Tcl_FSFileAttrStrings(name, &stringsList);
+    if (!strings && stringsList) {
+        int length = 0;
+    	Tcl_IncrRefCount(stringsList);
+	    Tcl_ListObjLength(NULL, stringsList, &length);
+    	strings = (const char **)ckalloc((length + 1) * sizeof(char *));
+        int index;
+        Tcl_Obj *elem;
+    	for (index = 0; index < length; index++) {
+	        Tcl_ListObjIndex(NULL, stringsList, index, &elem);
+	        strings[index] = Tcl_GetString(elem);
+        }
+    	strings[index] = NULL;
+	}
+    if (strings) {
+        for (int index = 0; strings[index]; index++)
+            for (int i = 0; i < ATTR_COUNT; i++)
+                if (strcmp(strings[index], attrStrings[i]) == 0)
+                    indices[i] = index;
+        if (stringsList) {
+            ckfree((char *)strings);
+            Tcl_DecrRefCount(stringsList);
+        }
+    }
 }

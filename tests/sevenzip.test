@@ -38,6 +38,7 @@ if {[info proc writeFile] eq ""} {
 }
 
 customMatch nocase {string equal -nocase}
+customMatch twostrings {apply {{e a} {string eq [lindex $a 0] [lindex $a 1]}}}
 testConstraint have7zip [sevenzip isinitialized]
 testConstraint haveMemchan [expr {![catch {package require tcl::chan::memchan}]}]
 testConstraint encodingOk [expr {"тест" eq "\u0442\u0435\u0441\u0442"}]
@@ -900,6 +901,28 @@ testDIRS/test3/test33/test331
 testDIRS/test4.txt
 testDIRS/test5.txt
 testDIRS/test6.txt}
+
+foreach {n x} {0 .7z 1 .zip 2 .rar 3 .tar 4 .arj} {
+    test sevenzip-8.1.$n "check attributes for $x" -constraints [list have7zip supported$x] -setup {
+        set cmd [sevenzip open [file join [testsDirectory] files test$x]]
+        set out [file join [temporaryDirectory] test.txt]
+    } -body {
+        array set arcstat [list size 0 mtime 0 posixattrib 0]
+        array set arcstat [lindex [$cmd list -info test.txt] 0]
+        $cmd extract $out test.txt
+        file stat $out outstat
+#puts arc:[array get arcstat]
+#puts out:[array get outstat]
+        list \
+            [list $arcstat(size) $arcstat(mtime) $arcstat(posixattrib)] \
+            [list $outstat(size) $outstat(mtime) $outstat(mode)]
+    } -cleanup {
+        $cmd close
+        file delete $out
+        unset arcstat outstat
+    } -result {} -match twostrings
+    unset n x
+}
 
 test sevenzip-9.0 {init in the child interp} -constraints {have7zip} -setup {
     interp create i

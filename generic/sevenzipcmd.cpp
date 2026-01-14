@@ -114,16 +114,15 @@ int SevenzipCmd::Command (int objc, Tcl_Obj *const objv[]) {
 
     case cmOpen:
 
-        // open ?-multivolume? ?-detecttype|-forcetype? ?-password password? -channel -- chan | filename
+        // open ?-detecttype|-forcetype? ?-password password? -channel -- chan | filename
         if (objc > 2) {
             static const char *const options[] = {
-                "-multivolume", "-detecttype", "-forcetype", "-password", "-channel", 0L
+                "-detecttype", "-forcetype", "-password", "-channel", 0L
             };
             enum options {
-                opMultivolume, opDetecttype, opForcetype, opPassword, opChannel
+                opDetecttype, opForcetype, opPassword, opChannel
             };
             int index;
-            bool multivolume = false;
             bool detecttype = false;
             bool usechannel = false;
             Tcl_Obj *password = NULL;
@@ -133,9 +132,6 @@ int SevenzipCmd::Command (int objc, Tcl_Obj *const objv[]) {
                     return TCL_ERROR;
                 }
                 switch ((enum options)(index)) {
-                case opMultivolume:
-                    multivolume = true;
-                    break;
                 case opDetecttype:
                     detecttype = true;
                     break;
@@ -165,11 +161,6 @@ int SevenzipCmd::Command (int objc, Tcl_Obj *const objv[]) {
             if (detecttype && forcetype != NULL) {
                 Tcl_SetObjResult(tclInterp, Tcl_NewStringObj(
                     "only one of options \"-detecttype\" or \"-forcetype\" must be specified", -1));
-                return TCL_ERROR;
-            }
-            if (multivolume && usechannel) {
-                Tcl_SetObjResult(tclInterp, Tcl_NewStringObj(
-                    "only one of options \"-multivolume\" or \"-channel\" must be specified", -1));
                 return TCL_ERROR;
             }
 

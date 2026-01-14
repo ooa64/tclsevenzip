@@ -34,11 +34,7 @@ proc mountFile {f} {
     set ext [string range [file extension $f] 1 end]
     try {
         if {$ext in $exts} {
-            if {[string index $ext end] eq "1"} {
-                return [vfs::sevenzip::Mount $f $f -multivolume]
-            } else {
-                return [vfs::sevenzip::Mount $f $f]
-            }
+            return [vfs::sevenzip::Mount $f $f]
         } elseif {[file tail $f] eq {[Content]}} {
             return [vfs::sevenzip::Mount $f $f -detecttype]
         }

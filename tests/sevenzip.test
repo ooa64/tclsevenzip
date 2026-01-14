@@ -94,15 +94,11 @@ test sevenzip-1.4 {open syntax}  -body {
 
 test sevenzip-1.5 {open syntax}  -body {
     sevenzip open xxx xxx
-} -returnCodes 1 -result {bad option "xxx": must be -multivolume, -detecttype, -forcetype, -password, or -channel}
-
-test sevenzip-1.6 {open syntax}  -body {
-    sevenzip open -multivolume xxx xxx
-} -returnCodes 1 -result {bad option "xxx": must be -multivolume, -detecttype, -forcetype, -password, or -channel}
+} -returnCodes 1 -result {bad option "xxx": must be -detecttype, -forcetype, -password, or -channel}
 
 test sevenzip-1.7 {open syntax}  -body {
     sevenzip open -detecttype xxx xxx
-} -returnCodes 1 -result {bad option "xxx": must be -multivolume, -detecttype, -forcetype, -password, or -channel}
+} -returnCodes 1 -result {bad option "xxx": must be -detecttype, -forcetype, -password, or -channel}
 
 test sevenzip-1.8 {open syntax}  -body {
     sevenzip open -forcetype xxx
@@ -111,10 +107,6 @@ test sevenzip-1.8 {open syntax}  -body {
 test sevenzip-1.9 {open syntax}  -body {
     sevenzip open -detecttype -forcetype xxx xxx
 } -returnCodes 1 -result {only one of options "-detecttype" or "-forcetype" must be specified}
-
-test sevenzip-1.10 {open syntax}  -body {
-    sevenzip open -multivolume -channel xxx
-} -returnCodes 1 -result {only one of options "-multivolume" or "-channel" must be specified}
 
 test sevenzip-1.11 {open syntax} -body {
     sevenzip open -password xxx
@@ -771,22 +763,13 @@ test sevenzip-5.11.1 {extract data with item password} -constraints {have7zip} -
     file delete $out
 } -result {*Unspecified error} -match glob -returnCodes 1
 
-test sevenzip-6.0 {open singlevolume with -m} -constraints {have7zip} -body {
-    [sevenzip open -m [file join [testsDirectory] files test.7z]] close
-} -result {}
-
-test sevenzip-6.1 {open multivolume w/o -m} -constraints {have7zip} -body {
-    [sevenzip open [file join [testsDirectory] files testMVOL.7z.001]] close
-# -returnCodes 1 -match nocase -result {Not supported}
-} -returnCodes 0 -result {}
-
 test sevenzip-6.2 {open multivolume} -constraints {have7zip} -body {
-    set cmd [sevenzip open -m [file join [testsDirectory] files testMVOL.7z.001]]
+    set cmd [sevenzip open [file join [testsDirectory] files testMVOL.7z.001]]
     $cmd close
 } -result {}
 
 test sevenzip-6.3 {list multivolume} -constraints {have7zip} -setup {
-    set cmd [sevenzip open -m [file join [testsDirectory] files testMVOL.7z.001]]
+    set cmd [sevenzip open [file join [testsDirectory] files testMVOL.7z.001]]
 } -body {
     $cmd list
 } -cleanup {
@@ -794,7 +777,7 @@ test sevenzip-6.3 {list multivolume} -constraints {have7zip} -setup {
 } -result {test test/test.txt}
 
 test sevenzip-6.4 {extract multivolume} -constraints {have7zip} -setup {
-    set cmd [sevenzip open -f [sevenzip format "001"] -m [file join [testsDirectory] files testMVOL.7z.001]]
+    set cmd [sevenzip open -f [sevenzip format "001"] [file join [testsDirectory] files testMVOL.7z.001]]
     set out [file join [temporaryDirectory] test.txt]
     catch {file delete $out}
     writeFile $out "TEST"

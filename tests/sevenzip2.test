@@ -306,7 +306,7 @@ test sevenzip2-2.8.2 {create/extract encrypted item invalid password (7z)} -cons
     sevenzip create -forcetype 7z -password TEST $f $l
     set z [sevenzip open -forcetype 7z -password TESTX $f]
     $z extract $o [lindex $l 0]
-} -result {Unspecified error} -returnCodes 1
+} -result {*Unspecified error} -match glob -returnCodes 1
 
 test sevenzip2-2.8.2m {create/extract encrypted archive no password (7z)} -constraints {have7zip haveMemchan frozenMemchanBug} -setup {
     set l [list [file join [testsDirectory] files test.txt]]
@@ -323,7 +323,7 @@ test sevenzip2-2.8.2m {create/extract encrypted archive no password (7z)} -const
     seek $c 0 start
     set z [sevenzip open -forcetype 7z -password TESTX -channel $c]
     $z extract -channel $o [lindex $l 0]
-} -result {Unspecified error} -returnCodes 1
+} -result {*Unspecified error} -match glob -returnCodes 1
 
 test sevenzip2-2.9 {create complex archive (7z)} -constraints {have7zip haveMemchan} -setup {
     set c [::tcl::chan::memchan]
@@ -359,3 +359,4 @@ sevenzip2/subdir2/file3.txt}
 
 cleanupTests
 return
+

@@ -745,7 +745,7 @@ test sevenzip-5.10.1 {extract data with item password using invalid archive pass
 } -cleanup {
     $cmd close
     file delete $out
-} -result {Unspecified error} -returnCodes 1
+} -result {*Unspecified error} -match glob -returnCodes 1
 
 test sevenzip-5.11 {extract data with item password} -constraints {have7zip} -setup {
     set cmd [sevenzip open [file join [testsDirectory] files testPWD1.7z]]
@@ -769,7 +769,7 @@ test sevenzip-5.11.1 {extract data with item password} -constraints {have7zip} -
 } -cleanup {
     $cmd close
     file delete $out
-} -result {Unspecified error} -returnCodes 1
+} -result {*Unspecified error} -match glob -returnCodes 1
 
 test sevenzip-6.0 {open singlevolume with -m} -constraints {have7zip} -body {
     [sevenzip open -m [file join [testsDirectory] files test.7z]] close

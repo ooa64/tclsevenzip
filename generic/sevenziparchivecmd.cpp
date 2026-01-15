@@ -500,18 +500,24 @@ int SevenzipArchiveCmd::List(Tcl_Obj *list, Tcl_Obj *pattern, char type, int fla
                     case VT_UI4:
                         if (archive.getIntItemProperty(i, propId, uint32Value) == S_OK)
                             value = Tcl_NewIntObj(uint32Value);
+                        // NOTE: see note below about some 64bit values returned as VT_UI4
+                        else if (archive.getWideItemProperty(i, propId, uint64Value) == S_OK)
+                            value = Tcl_NewWideIntObj(uint64Value);
                         break;
                     case VT_I8:
                     case VT_UI8:
                         if (archive.getWideItemProperty(i, propId, uint64Value) == S_OK)
                             value = Tcl_NewWideIntObj(uint64Value);
+                        // NOTE: some 64bit values (like arj size) are returned as VT_UI4
+                        else if (archive.getIntItemProperty(i, propId, uint32Value) == S_OK)
+                            value = Tcl_NewIntObj(uint32Value);
                         break;
                     case VT_FILETIME:
                         if (archive.getTimeItemProperty(i, propId, uint32Value) == S_OK)
                             value = Tcl_NewIntObj(uint32Value);
                         break;
                     default:
-                        DEBUGLOG(this << " SevenzipArchiveCmd unknown item " << i << " prop id " << propId << " type " << propType);
+                        // DEBUGLOG(this << " SevenzipArchiveCmd::List info unknown item " << i << " prop id " << propId << " type " << propType);
                         break;
                     }
                     if (value) {
@@ -521,7 +527,7 @@ int SevenzipArchiveCmd::List(Tcl_Obj *list, Tcl_Obj *pattern, char type, int fla
                                     : Tcl_ObjPrintf("prop%d", propId));
                         Tcl_ListObjAppendElement(NULL, prop, value);
                     } else {
-                        // DEBUGLOG(this << " SevenzipArchiveCmd unhandled item " << i << " prop id " << propId << " type " << propType);
+                        // DEBUGLOG(this << " SevenzipArchiveCmd::List info unhandled item " << i << " prop id " << propId << " type " << propType);
                     }
                     if (propId == kpidIsDir)
                         haveIsDirProperty = true;

@@ -586,21 +586,25 @@ int SevenzipArchiveCmd::Extract(Tcl_Obj *source, Tcl_Obj *destination, Tcl_Obj *
         char* path = sevenzip::toBytes(archive.getItemPath(i));
 #endif
         if (strcmp(path, Tcl_GetString(source)) == 0) {
-            // FIXME: use automatic memory management for stream?
-            auto *stream = new SevenzipOutStream(tclInterp);
+            SevenzipOutStream stream(tclInterp);
 
             HRESULT hr = usechannel
-                ? stream->AttachOpenChannel(destination)
-                : stream->AttachFileChannel(destination);
+                ? stream.AttachOpenChannel(destination)
+                : stream.AttachFileChannel(destination);
 
             if (hr == S_OK)
-                hr = archive.extract(*stream, 
+                hr = archive.extract(stream, 
                         password ? sevenzip::fromBytes(Tcl_GetString(password)) : NULL, i);
 
-            if (!usechannel)
-                Tcl_Close(tclInterp, stream->DetachChannel());
+            if (!usechannel) {
+                // NOTE: detach channel to 1) close it, and 2) enable SetXxxx functions.
+                Tcl_Close(tclInterp, stream.DetachChannel());
 
-            delete stream;
+                wchar_t *wdestination = sevenzip::fromBytes(Tcl_GetString(destination));
+                stream.SetTime(wdestination, archive.getItemTime(i));
+                stream.SetMode(wdestination, archive.getItemMode(i));
+                stream.SetAttr(wdestination, archive.getItemAttr(i));
+            }
 
             if (hr != S_OK)
                 result = lastError(tclInterp, hr);

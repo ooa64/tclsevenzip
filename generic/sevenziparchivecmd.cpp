@@ -185,13 +185,10 @@ HRESULT SevenzipArchiveCmd::Open(sevenzip::Lib& lib, SevenzipInStream* stream,
     if (stream)
         this->stream = stream;
 
-    wchar_t buffer[128];
-    if (password)
-        sevenzip::fromBytes(buffer, sizeof(buffer)/sizeof(buffer[0]), Tcl_GetString(password));
-
+    wchar_t buffer[1024];
     return archive.open(lib, *stream,
             filename ? sevenzip::fromBytes(Tcl_GetString(filename)) : NULL,
-            password ? buffer : NULL,
+            password ? sevenzip::fromBytes(buffer, sizeof(buffer)/sizeof(buffer[0]), Tcl_GetString(password)) : NULL,
             formatIndex);
 }
 

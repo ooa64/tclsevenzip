@@ -160,20 +160,6 @@ SevenzipArchiveCmd::~SevenzipArchiveCmd() {
 }
 
 HRESULT SevenzipArchiveCmd::Open(sevenzip::Lib& lib, SevenzipInStream* stream,
-        Tcl_Obj* filename, int formatIndex) {
-    DEBUGLOG(this << " SevenzipArchiveCmd::Open " << (filename ? Tcl_GetString(filename) : "NULL"));
-    if (!stream)
-        return E_FAIL;
-    if (stream && this->stream)
-        return E_FAIL;
-    if (stream)
-        this->stream = stream;
-    return archive.open(lib, *stream,
-            filename ? sevenzip::fromBytes(Tcl_GetString(filename)) : NULL,
-            formatIndex);
-}
-
-HRESULT SevenzipArchiveCmd::Open(sevenzip::Lib& lib, SevenzipInStream* stream,
         Tcl_Obj* filename, Tcl_Obj* password, int formatIndex) {
     DEBUGLOG(this << " SevenzipArchiveCmd::Open"
             << " " << (filename ? Tcl_GetString(filename) : "NULL")

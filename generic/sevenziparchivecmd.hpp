@@ -13,7 +13,6 @@ public:
             TclCmd *parent);
     virtual ~SevenzipArchiveCmd();
 
-    HRESULT Open(sevenzip::Lib& lib, SevenzipInStream* stream, Tcl_Obj* filename, int formatIndex = -1);
     HRESULT Open(sevenzip::Lib& lib, SevenzipInStream* stream, Tcl_Obj* filename, Tcl_Obj* password, int formatIndex = -1);
 
     void Close();

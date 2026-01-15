@@ -3,6 +3,12 @@
 #include <sevenzip.h>
 #include <wchar.h>
 
+#ifdef _WIN32
+#include <sys/utime.h>
+#else
+#include <utime.h>
+#endif
+
 #include <sys/stat.h>
 #ifndef S_ISDIR 
 #define S_ISDIR(_m_) (((_m_) & _S_IFDIR) == _S_IFDIR)
@@ -318,7 +324,14 @@ HRESULT SevenzipOutStream::SetTime(const wchar_t* pathname, UInt32 time) {
     DEBUGLOG(this << " SevenzipOutStream::SetTime " << (pathname ? pathname : L"NULL") << " " << time);
     if (attached)
         return S_OK;
-    // TODO: implement time setting
+
+    struct utimbuf tval;
+    memset(&tval, 0, sizeof(tval));
+	tval.modtime = time;
+    Tcl_Obj *name = Tcl_NewStringObj(sevenzip::toBytes(pathname), -1);
+    Tcl_IncrRefCount(name);
+	Tcl_FSUtime(name, &tval);
+    Tcl_DecrRefCount(name);
     return S_FALSE;
 }
 

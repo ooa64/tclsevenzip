@@ -21,9 +21,9 @@
 #   define DEBUGLOG(_x_)
 #endif
 
-enum {ATTR_READONLY, ATTR_HIDDEN, ATTR_SYSTEM, ATTR_ARCHIVE, ATTR_COUNT};
-static char* const attrStrings[ATTR_COUNT] = {"-readonly", "-hidden", "-system", "-archive"};
-static UInt32 attrMasks[ATTR_COUNT] = {0x01, 0x02, 0x04, 0x020};
+enum {ATTR_READONLY, ATTR_HIDDEN, ATTR_SYSTEM, ATTR_ARCHIVE, ATTR_PERMISSIONS, ATTR_COUNT};
+static char* const attrStrings[ATTR_COUNT] = {"-readonly", "-hidden", "-system", "-archive", "-permissions"};
+static UInt32 attrMasks[ATTR_COUNT] = {0x01, 0x02, 0x04, 0x20, 0x00};
 static void getAttrIndices(Tcl_Obj *name, int *indices);
 
 SevenzipInStream::SevenzipInStream(Tcl_Interp *interp) : 
@@ -98,6 +98,7 @@ bool SevenzipInStream::IsDir(const wchar_t* pathname) {
     DEBUGLOG(this << " SevenzipInStream::IsDir " << (pathname ? pathname : L"NULL"));
     if (attached)
         return false;
+
     auto *stat = getStatBuf(pathname);
     if (stat)
         return S_ISDIR(Tcl_GetModeFromStat(stat));
@@ -108,6 +109,7 @@ UInt64 SevenzipInStream::GetSize(const wchar_t* pathname) {
     DEBUGLOG(this << " SevenzipInStream::GetSize " << (pathname ? pathname : L"NULL"));
     if (attached)
         return 0;
+
     auto *stat = getStatBuf(pathname);
     if (stat)
         return Tcl_GetSizeFromStat(stat);
@@ -118,10 +120,28 @@ UInt32 SevenzipInStream::GetMode(const wchar_t *pathname) {
     DEBUGLOG(this << " SevenzipInStream::GetMode " << (pathname ? pathname : L"NULL"));
     if (attached)
         return 0;
-    auto *stat = getStatBuf(pathname);
-    if (stat)
-        return Tcl_GetModeFromStat(stat);
-    return 0;
+
+    UInt32 mode = 0;
+    int indices[ATTR_COUNT];
+    Tcl_Obj *name = Tcl_NewStringObj(sevenzip::toBytes(pathname), -1);
+    Tcl_IncrRefCount(name);
+    getAttrIndices(name, indices);
+    if (indices[ATTR_PERMISSIONS] >= 0) {
+        Tcl_Obj *modeValue;
+        if (Tcl_FSFileAttrsGet(NULL, indices[ATTR_PERMISSIONS], name, &modeValue) == TCL_OK) {
+            int value;
+            if (Tcl_GetIntFromObj(NULL, modeValue, &value) == TCL_OK)
+                mode = (UInt32)value;
+            DEBUGLOG(this << " SevenzipOutStream::GetMode modeValue " << Tcl_GetString(modeValue));
+        }
+    }
+    Tcl_DecrRefCount(name);
+
+    // NOTE: could also get mode from stat buf
+    // auto *stat = getStatBuf(pathname);
+    // if (stat)
+    //     return Tcl_GetModeFromStat(stat);
+    return mode;
 }
 
 UInt32 SevenzipInStream::GetAttr(const wchar_t *pathname) {
@@ -155,6 +175,7 @@ UInt32 SevenzipInStream::GetTime(const wchar_t *pathname) {
     DEBUGLOG(this << " SevenzipInStream::GetTime " << (pathname ? pathname : L"NULL"));
     if (attached)
         return 0;
+
     auto *stat = getStatBuf(pathname);
     if (stat)
         return (UInt32)Tcl_GetModificationTimeFromStat(stat);        
@@ -280,6 +301,7 @@ HRESULT SevenzipOutStream::Mkdir(const wchar_t* pathname) {
     DEBUGLOG(this << " SevenzipOutStream::Mkdir " << (pathname ? pathname : L"NULL"));
     if (attached)
         return S_OK;
+
     return createDirectory(tclInterp,
             Tcl_NewStringObj(sevenzip::toBytes(pathname), -1)) ? S_OK : S_FALSE;
 }
@@ -293,7 +315,20 @@ HRESULT SevenzipOutStream::SetMode(const wchar_t* pathname, UInt32 mode) {
     DEBUGLOG(this << " SevenzipOutStream::SetMode " << (pathname ? pathname : L"NULL") << " " << std::oct << mode);
     if (attached)
         return S_OK;
-    // TODO: implement mode setting
+
+    int indices[ATTR_COUNT];
+    Tcl_Obj *name = Tcl_NewStringObj(sevenzip::toBytes(pathname), -1);
+    Tcl_IncrRefCount(name);
+    getAttrIndices(name, indices);
+    if (indices[ATTR_PERMISSIONS] >= 0) {
+        Tcl_Obj *modeValue = Tcl_ObjPrintf("%o", mode);
+        Tcl_IncrRefCount(modeValue);
+        DEBUGLOG(this << " SevenzipOutStream::SetMode modeValue " << Tcl_GetString(modeValue));
+        Tcl_FSFileAttrsSet(NULL, indices[ATTR_PERMISSIONS], name, modeValue);
+        Tcl_DecrRefCount(modeValue);
+    }
+    Tcl_DecrRefCount(name);
+
     return S_FALSE;
 }
 
@@ -363,6 +398,7 @@ Tcl_Channel SevenzipOutStream::DetachChannel() {
     DEBUGLOG(this << " SevenzipOutStream::DetachChannel");
     if (!tclChannel)
         return NULL;
+
     Tcl_Channel channel = tclChannel;
     tclChannel = NULL;
     attached = false;

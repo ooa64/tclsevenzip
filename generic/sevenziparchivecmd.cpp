@@ -607,9 +607,15 @@ int SevenzipArchiveCmd::Extract(Tcl_Obj *source, Tcl_Obj *destination, Tcl_Obj *
                 Tcl_Close(tclInterp, stream.DetachChannel());
 
                 wchar_t *wdestination = sevenzip::fromBytes(Tcl_GetString(destination));
-                stream.SetTime(wdestination, archive.getItemTime(i));
-                stream.SetMode(wdestination, archive.getItemMode(i));
-                stream.SetAttr(wdestination, archive.getItemAttr(i));
+                UInt32 time = archive.getItemTime(i);
+                UInt32 mode = archive.getItemMode(i);
+                UInt32 attr = archive.getItemAttr(i);
+                if (time > 0)
+                    stream.SetTime(wdestination, time);
+                if (mode > 0)
+                    stream.SetMode(wdestination, mode);
+                if (attr > 0 && attr < 64) // unix 7zz/zip attr = -2119925728/60
+                    stream.SetAttr(wdestination, mode);
             }
 
             if (hr != S_OK)

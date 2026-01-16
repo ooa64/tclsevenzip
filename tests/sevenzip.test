@@ -41,12 +41,14 @@ proc readAttributes {filename} {
     set mode 0
     set attrib 0
     foreach {key value} [file attributes $filename] {
-        switch -- $key {
-            "-readonly" {set attrib [expr {$attrib | 0x01}]}
-            "-hidden"  {set attrib [expr {$attrib | 0x02}]}
-            "-system" {set attrib [expr {$attrib | 0x04}]}
-            "-archive" {set attrib [expr {$attrib | 0x20}]}
-            "-permissions" {set mode [scan $value "%o"]}
+        if {$value ne "0"} {
+            switch -- $key {
+                "-readonly" {set attrib [expr {$attrib | 0x01}]}
+                "-hidden"  {set attrib [expr {$attrib | 0x02}]}
+                "-system" {set attrib [expr {$attrib | 0x04}]}
+                "-archive" {set attrib [expr {$attrib | 0x20}]}
+                "-permissions" {set mode [scan $value "%o"]}
+            }
         }
     }
     return [list mode $mode attrib $attrib]
@@ -941,7 +943,7 @@ foreach {n x} {0 .7z 1 .zip 2 .rar 3 .tar 4 .arj 10 MAC.7z 11 MAC.zip 12 MAC.rar
                     [expr {$arcstat(posixattrib) > 0 ? $outstat(mode) : 0}] \
                     [expr {$arcstat(attrib) > 0 ? $outstat(attrib) : 0}]] \
     } -cleanup {
-        file delete $out
+        file delete -force $out
         unset arcstat outstat
     } -result {} -match twostrings
     unset n x

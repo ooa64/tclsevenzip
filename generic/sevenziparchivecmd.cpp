@@ -615,7 +615,7 @@ int SevenzipArchiveCmd::Extract(Tcl_Obj *source, Tcl_Obj *destination, Tcl_Obj *
                 if (mode > 0)
                     stream.SetMode(wdestination, mode);
                 if (attr > 0 && attr < 64) // unix 7zz/zip attr = -2119925728/60
-                    stream.SetAttr(wdestination, mode);
+                    stream.SetAttr(wdestination, attr);
             }
 
             if (hr != S_OK)

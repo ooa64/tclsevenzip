@@ -347,6 +347,7 @@ HRESULT SevenzipOutStream::SetAttr(const wchar_t* pathname, UInt32 attr) {
     for (int i = 0; i < ATTR_COUNT; i++) {
         if ((attr & attrMasks[i]) && indices[i] >= 0) {
             Tcl_Obj *attrValue = Tcl_NewBooleanObj(true);
+            // Tcl_Obj *attrValue = Tcl_ObjPrintf("%d",  != 0);
             Tcl_IncrRefCount(attrValue);
             Tcl_FSFileAttrsSet(NULL, indices[i], name, attrValue);
             Tcl_DecrRefCount(attrValue);

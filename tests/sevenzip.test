@@ -37,6 +37,21 @@ if {[info proc writeFile] eq ""} {
     }
 }
 
+proc readAttributes {filename} {
+    set mode 0
+    set attrib 0
+    foreach {key value} [file attributes $filename] {
+        switch -- $key {
+            "-readonly" {set attrib [expr {$attrib | 0x01}]}
+            "-hidden"  {set attrib [expr {$attrib | 0x02}]}
+            "-system" {set attrib [expr {$attrib | 0x04}]}
+            "-archive" {set attrib [expr {$attrib | 0x20}]}
+            "-permissions" {set mode [scan $value "%o"]}
+        }
+    }
+    return [list mode $mode attrib $attrib]
+}
+
 customMatch nocase {string equal -nocase}
 customMatch twostrings {apply {{e a} {string eq [lindex $a 0] [lindex $a 1]}}}
 testConstraint have7zip [sevenzip isinitialized]
@@ -902,22 +917,30 @@ testDIRS/test4.txt
 testDIRS/test5.txt
 testDIRS/test6.txt}
 
-foreach {n x} {0 .7z 1 .zip 2 .rar 3 .tar 4 .arj} {
-    test sevenzip-8.1.$n "check attributes for $x" -constraints [list have7zip supported$x] -setup {
+foreach {n x} {0 .7z 1 .zip 2 .rar 3 .tar 4 .arj 10 MAC.7z 11 MAC.zip 12 MAC.rar 13 MAC.tar} {
+    test sevenzip-8.1.$n "check attributes for $x" -constraints [list have7zip supported[file ext $x]] -setup {
         set cmd [sevenzip open [file join [testsDirectory] files test$x]]
         set out [file join [temporaryDirectory] test.txt]
-    } -body {
-        array set arcstat [list size 0 mtime 0 posixattrib 0]
-        array set arcstat [lindex [$cmd list -info test.txt] 0]
         $cmd extract $out test.txt
+        array set arcstat [list size 0 mtime 0 posixattrib 0 attrib 0]
+        array set arcstat [lindex [$cmd list -info test.txt] 0]
+        array set outstat [readAttributes $out]
         file stat $out outstat
-#puts arc:[array get arcstat]
-#puts out:[array get outstat]
-        list \
-            [list $arcstat(size) $arcstat(mtime) $arcstat(posixattrib)] \
-            [list $outstat(size) $outstat(mtime) $outstat(mode)]
-    } -cleanup {
         $cmd close
+        if {$::tcl_platform(platform) eq "windows"} {
+            set arcstat(posixattrib) 0
+        } else {
+            set arcstat(attrib) 0
+        }
+    } -body {
+        list \
+            [list $arcstat(size) $arcstat(mtime) \
+                    [expr {$arcstat(posixattrib) > 0 ? $arcstat(posixattrib) : 0}] \
+                    [expr {$arcstat(attrib) > 0 ? $arcstat(attrib) : 0}]] \
+            [list $outstat(size) $outstat(mtime) \
+                    [expr {$arcstat(posixattrib) > 0 ? $outstat(mode) : 0}] \
+                    [expr {$arcstat(attrib) > 0 ? $outstat(attrib) : 0}]] \
+    } -cleanup {
         file delete $out
         unset arcstat outstat
     } -result {} -match twostrings

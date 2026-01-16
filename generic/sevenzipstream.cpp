@@ -22,7 +22,7 @@
 #endif
 
 enum {ATTR_READONLY, ATTR_HIDDEN, ATTR_SYSTEM, ATTR_ARCHIVE, ATTR_PERMISSIONS, ATTR_COUNT};
-static char* const attrStrings[ATTR_COUNT] = {"-readonly", "-hidden", "-system", "-archive", "-permissions"};
+static const char* const attrStrings[ATTR_COUNT] = {"-readonly", "-hidden", "-system", "-archive", "-permissions"};
 static UInt32 attrMasks[ATTR_COUNT] = {0x01, 0x02, 0x04, 0x20, 0x00};
 static void getAttrIndices(Tcl_Obj *name, int *indices);
 
@@ -121,27 +121,27 @@ UInt32 SevenzipInStream::GetMode(const wchar_t *pathname) {
     if (attached)
         return 0;
 
-    UInt32 mode = 0;
-    int indices[ATTR_COUNT];
-    Tcl_Obj *name = Tcl_NewStringObj(sevenzip::toBytes(pathname), -1);
-    Tcl_IncrRefCount(name);
-    getAttrIndices(name, indices);
-    if (indices[ATTR_PERMISSIONS] >= 0) {
-        Tcl_Obj *modeValue;
-        if (Tcl_FSFileAttrsGet(NULL, indices[ATTR_PERMISSIONS], name, &modeValue) == TCL_OK) {
-            int value;
-            if (Tcl_GetIntFromObj(NULL, modeValue, &value) == TCL_OK)
-                mode = (UInt32)value;
-            DEBUGLOG(this << " SevenzipOutStream::GetMode modeValue " << Tcl_GetString(modeValue));
-        }
-    }
-    Tcl_DecrRefCount(name);
+    auto *stat = getStatBuf(pathname);
+    if (stat)
+        return Tcl_GetModeFromStat(stat);
+    return 0;
 
-    // NOTE: could also get mode from stat buf
-    // auto *stat = getStatBuf(pathname);
-    // if (stat)
-    //     return Tcl_GetModeFromStat(stat);
-    return mode;
+    // NOTE: could also get mode using attributes (see SetMode)
+    // NOTE: stat buf can return 100644 vs 00644 from attributes
+    // UInt32 mode = 0;
+    // int indices[ATTR_COUNT];
+    // Tcl_Obj *name = Tcl_NewStringObj(sevenzip::toBytes(pathname), -1);
+    // Tcl_IncrRefCount(name);
+    // getAttrIndices(name, indices);
+    // if (indices[ATTR_PERMISSIONS] >= 0) {
+    //     Tcl_Obj *modeValue;
+    //     if (Tcl_FSFileAttrsGet(NULL, indices[ATTR_PERMISSIONS], name, &modeValue) == TCL_OK) {
+    //         mode = strtol(Tcl_GetString(modeValue), NULL, 8);
+    //         DEBUGLOG(this << " SevenzipOutStream::GetMode modeValue " << Tcl_GetString(modeValue) << " " << mode);
+    //     }
+    // }
+    // Tcl_DecrRefCount(name);
+    // return mode;
 }
 
 UInt32 SevenzipInStream::GetAttr(const wchar_t *pathname) {
@@ -321,9 +321,10 @@ HRESULT SevenzipOutStream::SetMode(const wchar_t* pathname, UInt32 mode) {
     Tcl_IncrRefCount(name);
     getAttrIndices(name, indices);
     if (indices[ATTR_PERMISSIONS] >= 0) {
-        Tcl_Obj *modeValue = Tcl_ObjPrintf("%o", mode);
+        // NOTE: using integer below looks less expensive
+        // Tcl_Obj *modeValue = Tcl_ObjPrintf("%o", mode);
+        Tcl_Obj *modeValue = Tcl_NewIntObj(mode);
         Tcl_IncrRefCount(modeValue);
-        DEBUGLOG(this << " SevenzipOutStream::SetMode modeValue " << Tcl_GetString(modeValue));
         Tcl_FSFileAttrsSet(NULL, indices[ATTR_PERMISSIONS], name, modeValue);
         Tcl_DecrRefCount(modeValue);
     }

@@ -8,13 +8,6 @@ change syntax to extract:
 	handle extract ?-password password? ?-directory dir? ?itemsMask? - extract items to joined dir and itemPath?
 	handle extract ?-password password? ?destination? - extract all items to destination?
 
-add formats command returns dictionary
-	use numeric types as format id for -forcetype
-
-fix create command feature
-	password cannot be set on item
-	properties cannot be set on item
-
 add create command option -directory:
 	sevenzip create ?-properties proplist? ?-forcetype type? ?-password password? ?-directory dir? ?-channel? pathOrChannel filesList
 
@@ -30,6 +23,6 @@ progress callbacks:
 	sevenzip create ?-callback script? ...
 		where callback is `proc cb {op??? item? progress? total?}`
 
-unload 7z library without fatal `rename sevenzip ""`
-
 internals: streams should be owned by callbacks as members?
+
+internals: wipe passwords after use

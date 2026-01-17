@@ -23,9 +23,9 @@
 #endif
 
 enum {ATTR_READONLY, ATTR_HIDDEN, ATTR_SYSTEM, ATTR_ARCHIVE, ATTR_PERMISSIONS, ATTR_COUNT};
-static const char* const attrStrings[ATTR_COUNT] = {"-readonly", "-hidden", "-system", "-archive", "-permissions"};
 static UInt32 attrMasks[ATTR_COUNT] = {0x01, 0x02, 0x04, 0x20, 0x00};
 static void getAttrIndices(Tcl_Obj *name, int *indices);
+
 
 SevenzipInStream::SevenzipInStream(Tcl_Interp *interp) : 
         tclInterp(interp), tclChannel(NULL), attached(false),
@@ -96,32 +96,73 @@ sevenzip::Istream *SevenzipInStream::Clone() const {
 }
 
 bool SevenzipInStream::IsDir(const wchar_t* pathname) {
-    DEBUGLOG(this << " SevenzipInStream::IsDir " << (pathname ? pathname : L"NULL"));
+    DEBUGLOG(this << " SevenzipInStream::IsDir " << (pathname ? pathname : L"NULL")
+            << " attached " << attached);
     if (attached)
         return false;
+    if (!pathname)
+        return false;
+    return IsDir(Tcl_NewStringObj(sevenzip::toBytes(pathname), -1));
+}
 
+UInt64 SevenzipInStream::GetSize(const wchar_t* pathname) {
+    DEBUGLOG(this << " SevenzipInStream::GetSize " << (pathname ? pathname : L"NULL")
+            << " attached " << attached);
+    if (attached)
+        return 0;
+    if (!pathname)
+        return 0;
+    return GetSize(Tcl_NewStringObj(sevenzip::toBytes(pathname), -1));
+}
+
+UInt32 SevenzipInStream::GetMode(const wchar_t *pathname) {
+    DEBUGLOG(this << " SevenzipInStream::GetMode " << (pathname ? pathname : L"NULL")
+            << " attached " << attached);
+    if (attached)
+        return 0;
+    if (!pathname)
+        return 0;
+    return GetMode(Tcl_NewStringObj(sevenzip::toBytes(pathname), -1));
+}
+
+UInt32 SevenzipInStream::GetAttr(const wchar_t *pathname) {
+    DEBUGLOG(this << " SevenzipInStream::GetAttr " << (pathname ? pathname : L"NULL")
+            << " attached " << attached);
+    if (attached)
+        return 0;
+    if (!pathname)
+        return 0;
+    return GetAttr(Tcl_NewStringObj(sevenzip::toBytes(pathname), -1));
+}
+
+UInt32 SevenzipInStream::GetTime(const wchar_t *pathname) {
+    DEBUGLOG(this << " SevenzipInStream::GetTime " << (pathname ? pathname : L"NULL")
+            << " attached " << attached);
+    if (attached)
+        return 0;
+    if (!pathname)
+        return 0;
+    return GetTime(Tcl_NewStringObj(sevenzip::toBytes(pathname), -1));
+}
+
+bool SevenzipInStream::IsDir(Tcl_Obj *pathname) {
+    DEBUGLOG(this << " SevenzipInStream::IsDir " << (pathname ? Tcl_GetString(pathname) : "NULL"));
     auto *stat = getStatBuf(pathname);
     if (stat)
         return S_ISDIR(Tcl_GetModeFromStat(stat));
     return false;
 }
 
-UInt64 SevenzipInStream::GetSize(const wchar_t* pathname) {
-    DEBUGLOG(this << " SevenzipInStream::GetSize " << (pathname ? pathname : L"NULL"));
-    if (attached)
-        return 0;
-
+UInt64 SevenzipInStream::GetSize(Tcl_Obj *pathname) {
+    DEBUGLOG(this << " SevenzipInStream::GetSize " << (pathname ? Tcl_GetString(pathname) : "NULL"));
     auto *stat = getStatBuf(pathname);
     if (stat)
         return Tcl_GetSizeFromStat(stat);
     return 0;
 }
 
-UInt32 SevenzipInStream::GetMode(const wchar_t *pathname) {
-    DEBUGLOG(this << " SevenzipInStream::GetMode " << (pathname ? pathname : L"NULL"));
-    if (attached)
-        return 0;
-
+UInt32 SevenzipInStream::GetMode(Tcl_Obj *pathname) {
+    DEBUGLOG(this << " SevenzipInStream::GetMode " << (pathname ? Tcl_GetString(pathname) : "NULL"));
     auto *stat = getStatBuf(pathname);
     if (stat)
         return Tcl_GetModeFromStat(stat);
@@ -131,52 +172,48 @@ UInt32 SevenzipInStream::GetMode(const wchar_t *pathname) {
     // NOTE: stat buf can return 100644 vs 00644 from attributes
     // UInt32 mode = 0;
     // int indices[ATTR_COUNT];
-    // Tcl_Obj *name = Tcl_NewStringObj(sevenzip::toBytes(pathname), -1);
-    // Tcl_IncrRefCount(name);
-    // getAttrIndices(name, indices);
+    // Tcl_IncrRefCount(pathname);
+    // getAttrIndices(pathname, indices);
     // if (indices[ATTR_PERMISSIONS] >= 0) {
     //     Tcl_Obj *modeValue;
-    //     if (Tcl_FSFileAttrsGet(tclInterp, indices[ATTR_PERMISSIONS], name, &modeValue) == TCL_OK) {
+    //     if (Tcl_FSFileAttrsGet(tclInterp, indices[ATTR_PERMISSIONS], pathname, &modeValue) == TCL_OK) {
     //         mode = strtol(Tcl_GetString(modeValue), NULL, 8);
     //         DEBUGLOG(this << " SevenzipOutStream::GetMode modeValue " << Tcl_GetString(modeValue) << " " << mode);
     //     }
     // }
-    // Tcl_DecrRefCount(name);
+    // Tcl_DecrRefCount(pathname);
     // return mode;
 }
 
-UInt32 SevenzipInStream::GetAttr(const wchar_t *pathname) {
-    DEBUGLOG(this << " SevenzipInStream::GetAttr " << (pathname ? pathname : L"NULL"));
-    if (!pathname)
-        return 0;
-    if (attached)
-        return 0;
-
+UInt32 SevenzipInStream::GetAttr(Tcl_Obj *pathname) {
+    DEBUGLOG(this << " SevenzipInStream::GetAttr " << (pathname ? Tcl_GetString(pathname) : "NULL"));
     UInt32 attr = 0;
     int indices[ATTR_COUNT];
-    Tcl_Obj *name = Tcl_NewStringObj(sevenzip::toBytes(pathname), -1);
-    Tcl_IncrRefCount(name);
-    getAttrIndices(name, indices);
+    Tcl_IncrRefCount(pathname);
+    getAttrIndices(pathname, indices);
     for (int i = 0; i < ATTR_COUNT; i++)
         if (indices[i] >= 0) {
             int attrSet;
             Tcl_Obj *attrValue;
-            if (Tcl_FSFileAttrsGet(tclInterp, indices[i], name, &attrValue) != TCL_OK)
+            if (Tcl_FSFileAttrsGet(tclInterp, indices[i], pathname, &attrValue) != TCL_OK) {
+                DEBUGLOG(this << " SevenzipInStream::GetAttr failed: "
+                        << Tcl_GetStringResult(tclInterp));
                 continue;
-            if (Tcl_GetBooleanFromObj(NULL, attrValue, &attrSet) != TCL_OK)
+            }
+            if (Tcl_GetBooleanFromObj(NULL, attrValue, &attrSet) != TCL_OK) {
+                DEBUGLOG(this << " SevenzipInStream::GetAttr expected boolean got: "
+                        << Tcl_GetString(attrValue)); 
                 continue;
+            }
             if (attrSet)
                 attr |= attrMasks[i];
         }
-    Tcl_DecrRefCount(name);
+    Tcl_DecrRefCount(pathname);
     return attr;
 }
 
-UInt32 SevenzipInStream::GetTime(const wchar_t *pathname) {
-    DEBUGLOG(this << " SevenzipInStream::GetTime " << (pathname ? pathname : L"NULL"));
-    if (attached)
-        return 0;
-
+UInt32 SevenzipInStream::GetTime(Tcl_Obj *pathname) {
+    DEBUGLOG(this << " SevenzipInStream::GetTime " << (pathname ? Tcl_GetString(pathname) : "NULL"));
     auto *stat = getStatBuf(pathname);
     if (stat)
         return (UInt32)Tcl_GetModificationTimeFromStat(stat);        
@@ -218,23 +255,25 @@ Tcl_Channel SevenzipInStream::DetachChannel() {
     return channel;
 };
 
-Tcl_StatBuf *SevenzipInStream::getStatBuf(const wchar_t* pathname) {
-    if (!pathname)
-        return NULL;
-    if (statPath && wcscmp(statPath, pathname) == 0)
+Tcl_StatBuf *SevenzipInStream::getStatBuf(Tcl_Obj *pathname) {
+    if (statPath && strcmp(statPath, Tcl_GetString(pathname)) == 0)
         return statBuf;
     if (statPath)
         ckfree((char *)statPath);
 
-    statPath = (wchar_t *)ckalloc((wcslen(pathname) + 1) * sizeof(wchar_t));
-    wcscpy(statPath, pathname);
+    statPath = (char *)ckalloc(strlen(Tcl_GetString(pathname)) + 1);
+    strcpy(statPath, Tcl_GetString(pathname));
 
-    Tcl_Obj *name = Tcl_NewStringObj(sevenzip::toBytes(pathname), -1);
-    Tcl_IncrRefCount(name);
-    int result = Tcl_FSStat(name, statBuf);
-    Tcl_DecrRefCount(name);
-    if (result != TCL_OK)
+    Tcl_IncrRefCount(pathname);
+    int result = Tcl_FSStat(pathname, statBuf);
+    Tcl_DecrRefCount(pathname);
+    if (result != TCL_OK) {
+        DEBUGLOG(this << " SevenzipInStream::getStatBuf failed: "
+                << Tcl_GetStringResult(tclInterp));
+        ckfree(statPath);
+        statPath = NULL;
         return NULL;
+    }
     return statBuf;
 }
 
@@ -299,12 +338,13 @@ void SevenzipOutStream::Close() {
 }
 
 HRESULT SevenzipOutStream::Mkdir(const wchar_t* pathname) {
-    DEBUGLOG(this << " SevenzipOutStream::Mkdir " << (pathname ? pathname : L"NULL"));
+    DEBUGLOG(this << " SevenzipOutStream::Mkdir " << (pathname ? pathname : L"NULL")
+            << " attached " << attached);
     if (attached)
-        return S_OK;
-
-    return createDirectory(tclInterp,
-            Tcl_NewStringObj(sevenzip::toBytes(pathname), -1)) ? S_OK : S_FALSE;
+        return S_FALSE;
+    if (!pathname)
+        return S_FALSE;
+    return Mkdir(Tcl_NewStringObj(sevenzip::toBytes(pathname), -1));
 }
 
 // HRESULT SevenzipOutStream::SetSize(const wchar_t* pathname, UInt64 size) {
@@ -313,64 +353,105 @@ HRESULT SevenzipOutStream::Mkdir(const wchar_t* pathname) {
 // }
 
 HRESULT SevenzipOutStream::SetMode(const wchar_t* pathname, UInt32 mode) {
-    DEBUGLOG(this << " SevenzipOutStream::SetMode " << (pathname ? pathname : L"NULL") << " " << std::oct << mode);
+    DEBUGLOG(this << " SevenzipOutStream::SetMode " << (pathname ? pathname : L"NULL")
+            << " " << std::oct << mode << std::dec << " attached " << attached);
     if (attached)
-        return S_OK;
-
-    int indices[ATTR_COUNT];
-    Tcl_Obj *name = Tcl_NewStringObj(sevenzip::toBytes(pathname), -1);
-    Tcl_IncrRefCount(name);
-    getAttrIndices(name, indices);
-    if (indices[ATTR_PERMISSIONS] >= 0) {
-        // NOTE: using integer below looks less expensive
-        // Tcl_Obj *modeValue = Tcl_ObjPrintf("%o", mode);
-        Tcl_Obj *modeValue = Tcl_NewIntObj(mode);
-        Tcl_IncrRefCount(modeValue);
-        Tcl_FSFileAttrsSet(tclInterp, indices[ATTR_PERMISSIONS], name, modeValue);
-        Tcl_DecrRefCount(modeValue);
-    }
-    Tcl_DecrRefCount(name);
-
-    return S_FALSE;
+        return S_FALSE;
+    if (!pathname)
+        return S_FALSE;
+    return SevenzipOutStream::SetMode(Tcl_NewStringObj(sevenzip::toBytes(pathname), -1), mode);
 }
 
 HRESULT SevenzipOutStream::SetAttr(const wchar_t* pathname, UInt32 attr) {
-    DEBUGLOG(this << " SevenzipOutStream::SetAttr " << (pathname ? pathname : L"NULL") << " " << std::hex << attr << std::dec);
-    if (!pathname)
-        return 0;
+    DEBUGLOG(this << " SevenzipOutStream::SetAttr " << (pathname ? pathname : L"NULL")
+            << " " << std::hex << attr << std::dec << " attached " << attached);
     if (attached)
-        return 0;
-
-    int indices[ATTR_COUNT];
-    Tcl_Obj *name = Tcl_NewStringObj(sevenzip::toBytes(pathname), -1);
-    Tcl_IncrRefCount(name);
-    getAttrIndices(name, indices);
-    for (int i = 0; i < ATTR_COUNT; i++) {
-        if ((attr & attrMasks[i]) && indices[i] >= 0) {
-            Tcl_Obj *attrValue = Tcl_NewBooleanObj(true);
-            // Tcl_Obj *attrValue = Tcl_ObjPrintf("%d",  != 0);
-            Tcl_IncrRefCount(attrValue);
-            Tcl_FSFileAttrsSet(tclInterp, indices[i], name, attrValue);
-            Tcl_DecrRefCount(attrValue);
-        }
-    }
-    Tcl_DecrRefCount(name);
-    return S_OK;
+        return S_FALSE;
+    if (!pathname)
+        return S_FALSE;
+    return SevenzipOutStream::SetAttr(Tcl_NewStringObj(sevenzip::toBytes(pathname), -1), attr);
 }
 
 HRESULT SevenzipOutStream::SetTime(const wchar_t* pathname, UInt32 time) {
-    DEBUGLOG(this << " SevenzipOutStream::SetTime " << (pathname ? pathname : L"NULL") << " " << time);
+    DEBUGLOG(this << " SevenzipOutStream::SetTime " << (pathname ? pathname : L"NULL")
+            << " " << time << " attached " << attached);
     if (attached)
-        return S_OK;
+        return S_FALSE;
+    if (!pathname)
+        return S_FALSE;
+    return SetTime(Tcl_NewStringObj(sevenzip::toBytes(pathname), -1), time);
+}
 
+HRESULT SevenzipOutStream::Mkdir(Tcl_Obj* dirname) {
+    DEBUGLOG(this << " SevenzipOutStream::Mkdir " << (dirname ? Tcl_GetString(dirname) : "NULL"));
+    Tcl_IncrRefCount(dirname);
+    int result = Tcl_FSCreateDirectory(dirname);
+    Tcl_DecrRefCount(dirname);
+    if (result != TCL_OK) {
+        DEBUGLOG(this << " SevenzipOutStream::Mkdir failed: "
+                << Tcl_GetStringResult(tclInterp));
+        return S_FALSE;
+    }
+    return S_OK;
+}
+
+HRESULT SevenzipOutStream::SetMode(Tcl_Obj* pathname, UInt32 mode) {
+    DEBUGLOG(this << " SevenzipOutStream::SetMode " << (pathname ? Tcl_GetString(pathname) : "NULL")
+            << " " << std::oct << mode << std::dec);
+    int indices[ATTR_COUNT];
+    Tcl_IncrRefCount(pathname);
+    getAttrIndices(pathname, indices);
+    if (indices[ATTR_PERMISSIONS] >= 0) {
+        // NOTE: using a integer value below seems cheaper
+        // Tcl_Obj *modeValue = Tcl_ObjPrintf("%o", mode);
+        Tcl_Obj *modeValue = Tcl_NewIntObj(mode);
+        Tcl_IncrRefCount(modeValue);
+        if (Tcl_FSFileAttrsSet(tclInterp, indices[ATTR_PERMISSIONS], pathname, modeValue) != TCL_OK) {
+            DEBUGLOG(this << " SevenzipOutStream::SetMode failed: "
+                    << Tcl_GetStringResult(tclInterp));
+        }
+        Tcl_DecrRefCount(modeValue);
+    }
+    Tcl_DecrRefCount(pathname);
+    return S_OK;
+}
+
+HRESULT SevenzipOutStream::SetAttr(Tcl_Obj* pathname, UInt32 attr) {
+    DEBUGLOG(this << " SevenzipOutStream::SetAttr " << (pathname ? Tcl_GetString(pathname) : "NULL")
+            << " " << std::hex << attr << std::dec);
+    int indices[ATTR_COUNT];
+    Tcl_IncrRefCount(pathname);
+    getAttrIndices(pathname, indices);
+    for (int i = 0; i < ATTR_COUNT; i++) {
+        if ((attr & attrMasks[i]) && indices[i] >= 0) {
+            // NOTE: using a boolean value below seems cheaper
+            // Tcl_Obj *attrValue = Tcl_ObjPrintf("%d",  != 0);
+            Tcl_Obj *attrValue = Tcl_NewBooleanObj(true);
+            Tcl_IncrRefCount(attrValue);
+            if (Tcl_FSFileAttrsSet(tclInterp, indices[i], pathname, attrValue) != TCL_OK) {
+                DEBUGLOG(this << " SevenzipOutStream::SetAttr failed: "
+                        << Tcl_GetStringResult(tclInterp));
+            }
+            Tcl_DecrRefCount(attrValue);
+        }
+    }
+    Tcl_DecrRefCount(pathname);
+    return S_OK;
+}
+
+HRESULT SevenzipOutStream::SetTime(Tcl_Obj* pathname, UInt32 time) {
+    DEBUGLOG(this << " SevenzipOutStream::SetTime " << (pathname ? Tcl_GetString(pathname) : "NULL")
+            << " " << time);
     struct utimbuf tval;
     memset(&tval, 0, sizeof(tval));
 	tval.modtime = time;
-    Tcl_Obj *name = Tcl_NewStringObj(sevenzip::toBytes(pathname), -1);
-    Tcl_IncrRefCount(name);
-	Tcl_FSUtime(name, &tval);
-    Tcl_DecrRefCount(name);
-    return S_FALSE;
+    Tcl_IncrRefCount(pathname);
+	if (Tcl_FSUtime(pathname, &tval) != TCL_OK) {
+        DEBUGLOG(this << " SevenzipOutStream::SetTime failed: "
+                << Tcl_GetStringResult(tclInterp));
+    }
+    Tcl_DecrRefCount(pathname);
+    return S_OK;
 }
 
 HRESULT SevenzipOutStream::AttachOpenChannel(Tcl_Obj *channel) {
@@ -407,13 +488,6 @@ Tcl_Channel SevenzipOutStream::DetachChannel() {
     attached = false;
     return channel;
 };
-
-bool createDirectory(Tcl_Interp *tclInterp, Tcl_Obj *dirname) {
-    Tcl_IncrRefCount(dirname);
-    int result = Tcl_FSCreateDirectory(dirname);
-    Tcl_DecrRefCount(dirname);
-    return result == TCL_OK;
-}
 
 int lastError(Tcl_Interp *interp, HRESULT hr) {
     if (Tcl_GetCharLength(Tcl_GetObjResult(interp)) == 0) {
@@ -456,6 +530,13 @@ Tcl_Channel getFileChannel(Tcl_Interp *tclInterp, Tcl_Obj *filename, bool writab
 }
 
 static void getAttrIndices(Tcl_Obj *name, int *indices) {
+    static const char* const attrStrings[ATTR_COUNT] = {
+        "-readonly",
+        "-hidden",
+        "-system",
+        "-archive",
+        "-permissions"
+    };
     for (int i = 0; i < ATTR_COUNT; i++)
         indices[i] = -1;
     const char **strings = NULL;

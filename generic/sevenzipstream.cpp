@@ -136,7 +136,7 @@ UInt32 SevenzipInStream::GetMode(const wchar_t *pathname) {
     // getAttrIndices(name, indices);
     // if (indices[ATTR_PERMISSIONS] >= 0) {
     //     Tcl_Obj *modeValue;
-    //     if (Tcl_FSFileAttrsGet(NULL, indices[ATTR_PERMISSIONS], name, &modeValue) == TCL_OK) {
+    //     if (Tcl_FSFileAttrsGet(tclInterp, indices[ATTR_PERMISSIONS], name, &modeValue) == TCL_OK) {
     //         mode = strtol(Tcl_GetString(modeValue), NULL, 8);
     //         DEBUGLOG(this << " SevenzipOutStream::GetMode modeValue " << Tcl_GetString(modeValue) << " " << mode);
     //     }
@@ -161,7 +161,7 @@ UInt32 SevenzipInStream::GetAttr(const wchar_t *pathname) {
         if (indices[i] >= 0) {
             int attrSet;
             Tcl_Obj *attrValue;
-            if (Tcl_FSFileAttrsGet(NULL, indices[i], name, &attrValue) != TCL_OK)
+            if (Tcl_FSFileAttrsGet(tclInterp, indices[i], name, &attrValue) != TCL_OK)
                 continue;
             if (Tcl_GetBooleanFromObj(NULL, attrValue, &attrSet) != TCL_OK)
                 continue;
@@ -326,7 +326,7 @@ HRESULT SevenzipOutStream::SetMode(const wchar_t* pathname, UInt32 mode) {
         // Tcl_Obj *modeValue = Tcl_ObjPrintf("%o", mode);
         Tcl_Obj *modeValue = Tcl_NewIntObj(mode);
         Tcl_IncrRefCount(modeValue);
-        Tcl_FSFileAttrsSet(NULL, indices[ATTR_PERMISSIONS], name, modeValue);
+        Tcl_FSFileAttrsSet(tclInterp, indices[ATTR_PERMISSIONS], name, modeValue);
         Tcl_DecrRefCount(modeValue);
     }
     Tcl_DecrRefCount(name);
@@ -335,7 +335,7 @@ HRESULT SevenzipOutStream::SetMode(const wchar_t* pathname, UInt32 mode) {
 }
 
 HRESULT SevenzipOutStream::SetAttr(const wchar_t* pathname, UInt32 attr) {
-    DEBUGLOG(this << " SevenzipOutStream::SetAttr " << (pathname ? pathname : L"NULL") << " " << std::hex << attr);
+    DEBUGLOG(this << " SevenzipOutStream::SetAttr " << (pathname ? pathname : L"NULL") << " " << std::hex << attr << std::dec);
     if (!pathname)
         return 0;
     if (attached)
@@ -350,7 +350,7 @@ HRESULT SevenzipOutStream::SetAttr(const wchar_t* pathname, UInt32 attr) {
             Tcl_Obj *attrValue = Tcl_NewBooleanObj(true);
             // Tcl_Obj *attrValue = Tcl_ObjPrintf("%d",  != 0);
             Tcl_IncrRefCount(attrValue);
-            Tcl_FSFileAttrsSet(NULL, indices[i], name, attrValue);
+            Tcl_FSFileAttrsSet(tclInterp, indices[i], name, attrValue);
             Tcl_DecrRefCount(attrValue);
         }
     }

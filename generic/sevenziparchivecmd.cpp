@@ -606,16 +606,19 @@ int SevenzipArchiveCmd::Extract(Tcl_Obj *source, Tcl_Obj *destination, Tcl_Obj *
                 // NOTE: detach channel to 1) close it, and 2) enable SetXxxx functions.
                 Tcl_Close(tclInterp, stream.DetachChannel());
 
-                wchar_t *wdestination = sevenzip::fromBytes(Tcl_GetString(destination));
-                UInt32 time = archive.getItemTime(i);
-                UInt32 mode = archive.getItemMode(i);
-                UInt32 attr = archive.getItemAttr(i);
-                if (time > 0)
-                    stream.SetTime(wdestination, time);
-                if (mode > 0)
-                    stream.SetMode(wdestination, mode);
-                if (attr > 0 && attr < 64) // unix 7zz/zip attr = -2119925728/60
-                    stream.SetAttr(wdestination, attr);
+                if (hr == S_OK) {
+                    // NOTE: set file attrs that are not set for the attached channel
+                    wchar_t *wdestination = sevenzip::fromBytes(Tcl_GetString(destination));
+                    UInt32 time = archive.getItemTime(i);
+                    UInt32 mode = archive.getItemMode(i);
+                    UInt32 attr = archive.getItemAttr(i);
+                    if (time > 0)
+                        stream.SetTime(wdestination, time);
+                    if (mode > 0)
+                        stream.SetMode(wdestination, mode);
+                    if (attr > 0 && attr < 64) // unix 7zz/zip attr = -2119925728/60
+                        stream.SetAttr(wdestination, attr);
+                }
             }
 
             if (hr != S_OK)

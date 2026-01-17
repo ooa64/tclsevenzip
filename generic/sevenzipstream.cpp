@@ -1,6 +1,7 @@
 #include "sevenzipstream.hpp"
 
 #include <sevenzip.h>
+#include <string.h>
 #include <wchar.h>
 
 #ifdef _WIN32

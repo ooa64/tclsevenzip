@@ -154,7 +154,7 @@ foreach ext [set {sevenzip2-2.5-exts}] {
 
 unset {sevenzip2-2.5-exts}
 
-test sevenzip2-2.6 {create/list simple archive (7z)} -constraints {have7zip haveMemchan} -setup {
+test sevenzip2-2.6 {create/list simple archive (7z)} -constraints {have7zip} -setup {
     set l [list [file join [testsDirectory] files test.txt]]
     set f [file join [temporaryDirectory] sevenzip2.7z]
     set z ""
@@ -183,7 +183,7 @@ test sevenzip2-2.6m {create/list simple archive (7z)} -constraints {have7zip hav
     $z list
 } -result [list [file join [testsDirectory] files test.txt]]
 
-test sevenzip2-2.7 {create/extract simple archive (7z)} -constraints {have7zip haveMemchan} -setup {
+test sevenzip2-2.7 {create/extract simple archive (7z)} -constraints {have7zip} -setup {
     set l [list [file join [testsDirectory] files test.txt]]
     set f [file join [temporaryDirectory] sevenzip2.7z]
     set e [file join [temporaryDirectory] sevenzip2.txt]
@@ -325,7 +325,37 @@ test sevenzip2-2.8.2m {create/extract encrypted archive no password (7z)} -const
     $z extract -channel $o [lindex $l 0]
 } -result {*Unspecified error} -match glob -returnCodes 1
 
-test sevenzip2-2.9 {create complex archive (7z)} -constraints {have7zip haveMemchan} -setup {
+test sevenzip2-2.9 {create complex archive (7z)} -constraints {have7zip} -setup {
+    set f [file join [temporaryDirectory] sevenzip2.7z]
+    set d "sevenzip2"
+    set z ""
+    set l {}
+    set w [pwd]
+    cd [temporaryDirectory]
+    file mkdir $d; lappend l $d
+    file mkdir [file join $d subdir1]; lappend l [file join $d subdir1]
+    file mkdir [file join $d subdir2]; lappend l [file join $d subdir2]
+    writeFile [file join $d file1.txt] "This is file 1."; lappend l [file join $d file1.txt]
+    writeFile [file join $d subdir1 file2.txt] "This is file 2."; lappend l [file join $d subdir1 file2.txt]
+    writeFile [file join $d subdir2 file3.txt] "This is file 3."; lappend l [file join $d subdir2 file3.txt]
+} -cleanup {
+    catch {rename $z ""}; unset z
+    catch {file delete -force $d}; unset d
+    catch {file delete -force $f}; unset f
+    cd $w; unset w
+    unset l
+} -body {
+    sevenzip create -forcetype 7z $f $l
+    set z [sevenzip open -forcetype 7z $f]
+    join [$z list] \n
+} -result {sevenzip2
+sevenzip2/subdir1
+sevenzip2/subdir2
+sevenzip2/file1.txt
+sevenzip2/subdir1/file2.txt
+sevenzip2/subdir2/file3.txt}
+
+test sevenzip2-2.9m {create complex archive (7z)} -constraints {have7zip haveMemchan} -setup {
     set c [::tcl::chan::memchan]
     set d "sevenzip2"
     set z ""
@@ -355,6 +385,28 @@ sevenzip2/subdir2
 sevenzip2/file1.txt
 sevenzip2/subdir1/file2.txt
 sevenzip2/subdir2/file3.txt}
+
+test sevenzip2-3.0 {check attributes for creating archive (7z)} -constraints {have7zip win} -setup {
+    set z ""
+    set f "sevenzip2.7z"
+    set e "sevenzip2.txt"
+    set w [pwd]
+    cd [temporaryDirectory]
+    writeFile $e $e
+    file attributes $e -readonly 1 -hidden 1 -system 1 -archive 1
+    file mtime $e [clock scan "2020-12-34 54:32:10"]
+} -cleanup {
+    catch {rename $z ""}; unset z
+    catch {file delete -force $f}; unset f
+    catch {file delete -force $e}; unset e
+    cd $w; unset w
+    unset -nocomplain a
+} -body {
+    sevenzip create -forcetype 7z $f [list $e]
+    set z [sevenzip open -forcetype 7z $f]
+    array set a [lindex [$z list -info] 0]
+    list $a(size) $a(mtime) $a(attrib)
+} -result {13 1609821130 39}
 
 
 cleanupTests

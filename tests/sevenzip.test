@@ -919,6 +919,34 @@ testDIRS/test4.txt
 testDIRS/test5.txt
 testDIRS/test6.txt}
 
+test sevenzip-8.0.1 {check extracted windows attributes for 7z} -constraints {have7zip win} -setup {
+    set cmd [sevenzip open [file join [testsDirectory] files test.7z]]
+    set out [file join [temporaryDirectory] test.txt]
+    $cmd extract $out test.txt
+    array set outstat [readAttributes $out]
+    file stat $out outstat
+    $cmd close
+} -cleanup {
+    file delete -force $out
+    unset cmd outstat
+} -body {
+    list $outstat(size) $outstat(mtime) $outstat(attrib)
+} -result {4 1759752741 33}
+
+test sevenzip-8.0.2 {check extracted unix mode for tar} -constraints {have7zip supported.tar} -setup {
+    set cmd [sevenzip open [file join [testsDirectory] files test.tar]]
+    set out [file join [temporaryDirectory] test.txt]
+    $cmd extract $out test.txt
+    array set outstat [readAttributes $out]
+    file stat $out outstat
+    $cmd close
+} -cleanup {
+    file delete -force $out
+    unset cmd outstat
+} -body {
+    list $outstat(size) $outstat(mtime) [format %o $outstat(mode)]
+} -result {4 1759752741 100666}
+
 foreach {n x} {0 .7z 1 .zip 2 .rar 3 .tar 4 .arj 10 MAC.7z 11 MAC.zip 12 MAC.rar 13 MAC.tar} {
     test sevenzip-8.1.$n "check attributes for $x" -constraints [list have7zip supported[file ext $x]] -setup {
         set cmd [sevenzip open [file join [testsDirectory] files test$x]]

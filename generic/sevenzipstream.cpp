@@ -402,8 +402,6 @@ HRESULT SevenzipOutStream::SetMode(Tcl_Obj* pathname, UInt32 mode) {
     Tcl_IncrRefCount(pathname);
     getAttrIndices(pathname, indices);
     if (indices[ATTR_PERMISSIONS] >= 0) {
-        // NOTE: using a integer value below seems cheaper
-        // Tcl_Obj *modeValue = Tcl_ObjPrintf("%o", mode);
         Tcl_Obj *modeValue = Tcl_NewIntObj(mode);
         Tcl_IncrRefCount(modeValue);
         if (Tcl_FSFileAttrsSet(tclInterp, indices[ATTR_PERMISSIONS], pathname, modeValue) != TCL_OK) {
@@ -424,8 +422,6 @@ HRESULT SevenzipOutStream::SetAttr(Tcl_Obj* pathname, UInt32 attr) {
     getAttrIndices(pathname, indices);
     for (int i = 0; i < ATTR_COUNT; i++) {
         if ((attr & attrMasks[i]) && indices[i] >= 0) {
-            // NOTE: using a boolean value below seems cheaper
-            // Tcl_Obj *attrValue = Tcl_ObjPrintf("%d",  != 0);
             Tcl_Obj *attrValue = Tcl_NewBooleanObj(true);
             Tcl_IncrRefCount(attrValue);
             if (Tcl_FSFileAttrsSet(tclInterp, indices[i], pathname, attrValue) != TCL_OK) {

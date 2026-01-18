@@ -408,6 +408,53 @@ test sevenzip2-3.0 {check attributes for creating archive (7z)} -constraints {ha
     list $a(size) $a(mtime) $a(attrib)
 } -result {13 1609821130 39}
 
+foreach {n p v r} {
+    0 m lzma LZMA*
+    1 m copy COPY
+    2 x 9 LZMA*
+    3 x 0 COPY
+} { 
+    test sevenzip2-4.0.$n {create simple archive with string property (7z)} -constraints {have7zip} -setup {
+        set l [list [file join [testsDirectory] files test.txt]]
+        set f [file join [temporaryDirectory] sevenzip2.7z]
+        set z ""
+    } -cleanup {
+        catch {rename $z ""}; unset z
+        catch {file delete -force $f}; unset f
+        unset l
+    } -body {
+        sevenzip create -properties [list $p $v] -forcetype 7z $f $l
+        set z [sevenzip open -forcetype 7z $f]
+        string toupper [dict get [lindex [$z list -info] 0] method]
+    } -result $r -match glob
+    unset n p v r
+}
+
+foreach {n p v r} {
+    0 s on 1
+    1 s off 0
+} { 
+    test sevenzip2-4.1.$n {create simple archive with bool property (7z)} -constraints {have7zip} -setup {
+        set f [file join [temporaryDirectory] sevenzip2.7z]
+        set i1 [file join [temporaryDirectory] sevenzip2-1.txt]
+        set i2 [file join [temporaryDirectory] sevenzip2-2.txt]
+        writeFile $i1 $i1
+        writeFile $i2 $i2
+        set l [list $i1 $i2]
+        set z ""
+    } -cleanup {
+        catch {rename $z ""}; unset z
+        catch {file delete -force $f}; unset f
+        catch {file delete -force $i1 $i2}; unset i1 i2
+        unset l
+    } -body {
+        sevenzip create -properties [list s $v] -forcetype 7z $f $l
+        set z [sevenzip open -forcetype 7z $f]
+        dict get [$z info] solid
+    } -result $r
+    unset n p v r
+}
+
 
 cleanupTests
 return

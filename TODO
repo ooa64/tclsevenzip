@@ -10,11 +10,6 @@ add option -path to list to limit command output to the contents of a directory:
 	handle list ?-info? ?-nocase? ?-exact? ?-type f|d? ?--? ?<itemPattern>?
 	handle list ... ?-path itemPath? ?--? ?<itemPattern>?
 
-add option -inputchannel to create command to create archive with exactly one item from the channel:
-	sevenzip create ?-properties <propsDict>? ?-forcetype <type>? ?-password <password>? ?-channel? <pathOrChannel> <filesList>
-	sevenzip create ... ?-inputchannel channel? ?-channel? pathOrChannel <filesList with one item>
-	sevenzip create ... ?-inputchannel channel? ?-channel? pathOrChannel fileName
-
 change create command to make all items paths relative(?)
 
 progress callbacks:

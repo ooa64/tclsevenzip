@@ -16,7 +16,7 @@ place 7z.dll in PATH (windows) or 7z.so in LD_LIBRARY_PATH (unix)
 
 	handle info
 	handle count
-	handle list ?-info? ?-nocase? ?-exact? ?-type f|d? ?--? ?<pattern>?
+	handle list ?-info? ?-nocase? ?-exact? ?-type f|d? ?--? ?<itemPattern>?
 	handle extract ?-password password? ?-channel? <pathOrChannel> <itemName>
 	handle close
 

@@ -1,21 +1,21 @@
-implement get/set size/mode/time with tests
+add option -directory to create to avoid cd to dir first:
+	sevenzip create ?options? ?-channel? <pathOrChannel> <filesList>
+	sevenzip create ?options? ?-directory dir? ?-channel? <pathOrChannel> <filesList>
 
-fix extraction with invalid password (SetOperationResult?)
-	tests sevenzip-5.10.1 and sevenzip-5.11.1
+add option -directory to extract items to the directory:
+	handle extract ?-password password? ?-channel? <pathOrChannel> <itemName> 
+	handle extract ?-password password? ?-directory dir? ?-nocase? ?-exact? ?-type f|d? ?-path itemPpath? ?--? ?<itemPattern>?
+		
+add option -path to list to limit command output to the contents of a directory:
+	handle list ?-info? ?-nocase? ?-exact? ?-type f|d? ?--? ?<itemPattern>?
+	handle list ... ?-path itemPath? ?--? ?<itemPattern>?
 
-change syntax to extract:
-	handle extract ?-password password? ?-channel? pathOrChannel itemName - extract one item, current implementation
-	handle extract ?-password password? ?-directory dir? ?itemsMask? - extract items to joined dir and itemPath?
-	handle extract ?-password password? ?destination? - extract all items to destination?
+add option -inputchannel to create command to create archive with exactly one item from the channel:
+	sevenzip create ?-properties <propsDict>? ?-forcetype <type>? ?-password <password>? ?-channel? <pathOrChannel> <filesList>
+	sevenzip create ... ?-inputchannel channel? ?-channel? pathOrChannel <filesList with one item>
+	sevenzip create ... ?-inputchannel channel? ?-channel? pathOrChannel fileName
 
-add create command option -directory:
-	sevenzip create ?-properties proplist? ?-forcetype type? ?-password password? ?-directory dir? ?-channel? pathOrChannel filesList
-
-change create command:
-	make all items paths relative ?
-
-add directory option to list to limit output:
-	handle list -directory dir or -path itempath? 
+change create command to make all items paths relative(?)
 
 progress callbacks:
 	sevenzip open ?-callback script? ...

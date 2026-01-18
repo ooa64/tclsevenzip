@@ -166,10 +166,9 @@ HRESULT SevenzipArchiveCmd::Open(sevenzip::Lib& lib, SevenzipInStream* stream,
             << " " << (password ? Tcl_GetString(password) : "NULL"));
     if (!stream)
         return E_FAIL;
-    if (stream && this->stream)
+    if (this->stream)
         return E_FAIL;
-    if (stream)
-        this->stream = stream;
+    this->stream = stream;
 
     wchar_t buffer[1024];
     return archive.open(lib, *stream,

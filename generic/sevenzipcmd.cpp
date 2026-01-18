@@ -184,16 +184,17 @@ int SevenzipCmd::Command (int objc, Tcl_Obj *const objv[]) {
 
     case cmCreate:
 
-        // create ?-properties proplist? ?-forcetype type? ?-password password? ?-channel? chan | filename files
+        // create ?-properties proplist? ?-forcetype type? ?-password password? ?-inputchannel channel? ?-channel? channel | filename files
         if (objc > 3) {
             static const char *const options[] = {
-                "-properties", "-forcetype", "-password", "-channel", 0L
+                "-properties", "-forcetype", "-password", "-inputchannel", "-channel", 0L
             };
             enum options {
-                opProperties, opForcetype, opPassword, opChannel
+                opProperties, opForcetype, opPassword, opInputChannel, opChannel
             };
             int index;
             bool usechannel = false;
+            Tcl_Obj *inputchannel = NULL;
             Tcl_Obj *properties = NULL;
             Tcl_Obj *password = NULL;
             Tcl_Obj *forcetype = NULL;
@@ -237,6 +238,15 @@ int SevenzipCmd::Command (int objc, Tcl_Obj *const objv[]) {
                         return TCL_ERROR;
                     }
                     break;
+                case opInputChannel:
+                    if (i < objc - 3) {
+                        inputchannel = objv[++i];
+                    } else {
+                        Tcl_SetObjResult(tclInterp, Tcl_NewStringObj(
+                            "\"-inputchannel\" option must be followed by channel", -1));
+                        return TCL_ERROR;
+                    }
+                    break;                   
                 case opChannel:
                     usechannel = true;
                     break;
@@ -251,7 +261,8 @@ int SevenzipCmd::Command (int objc, Tcl_Obj *const objv[]) {
                 if (GetFormat(forcetype, type) != TCL_OK)
                     return TCL_ERROR;
 
-            return CreateArchive(objv[objc-1], objv[objc-2], password, type, usechannel, properties);
+            return CreateArchive(objv[objc-1], objv[objc-2],
+                    inputchannel, password, type, usechannel, properties);
         } else {
             Tcl_WrongNumArgs(tclInterp, 2, objv, "?options? path list");
             return TCL_ERROR;
@@ -339,13 +350,16 @@ int SevenzipCmd::OpenArchive(Tcl_Obj *command, Tcl_Obj *source,
     return TCL_OK;
 }
 
-int SevenzipCmd::CreateArchive(Tcl_Obj *pathnames, Tcl_Obj *destination,
+int SevenzipCmd::CreateArchive(Tcl_Obj *pathnames, Tcl_Obj *destination, Tcl_Obj *source,
         Tcl_Obj *password, int type, bool usechannel, Tcl_Obj *properties) {
     sevenzip::Oarchive archive;
     SevenzipInStream istream(tclInterp);
     SevenzipOutStream ostream(tclInterp);
     wchar_t buffer[1024];
     HRESULT hr = S_OK;
+    if (source)
+        if (istream.AttachOpenChannel(source) != TCL_OK)
+            return lastError(tclInterp, E_FAIL);
     if (usechannel)
         if (ostream.AttachOpenChannel(destination) != TCL_OK)
             return lastError(tclInterp, E_FAIL);
@@ -383,6 +397,9 @@ int SevenzipCmd::CreateArchive(Tcl_Obj *pathnames, Tcl_Obj *destination,
         Tcl_Size length;
         if (Tcl_ListObjLength(tclInterp, pathnames, &length) != TCL_OK)
             return TCL_ERROR;
+        // NOTE: when source is specified, only one item can be added
+        // if (source && length > 1)
+        //     length = 1;
         for (int i = 0; i < length; i++) {
             Tcl_Obj *item;
             if (Tcl_ListObjIndex(tclInterp, pathnames, i, &item) != TCL_OK)

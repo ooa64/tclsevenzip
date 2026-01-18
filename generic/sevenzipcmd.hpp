@@ -22,7 +22,7 @@ private:
     int SupportedFormats (Tcl_Obj *formats);
     int OpenArchive(Tcl_Obj *command, Tcl_Obj *source,
             Tcl_Obj *password, int type, bool usechannel);
-    int CreateArchive(Tcl_Obj *pathnames, Tcl_Obj *destination, 
+    int CreateArchive(Tcl_Obj *pathnames, Tcl_Obj *destination, Tcl_Obj *source, 
             Tcl_Obj *password, int type, bool usechannel, Tcl_Obj *properties);
     int GetFormat(Tcl_Obj *index, int &type);
 

@@ -108,8 +108,20 @@ bool SevenzipInStream::IsDir(const wchar_t* pathname) {
 UInt64 SevenzipInStream::GetSize(const wchar_t* pathname) {
     DEBUGLOG(this << " SevenzipInStream::GetSize " << (pathname ? pathname : L"NULL")
             << " attached " << attached);
-    if (attached)
-        return 0;
+    if (attached) {
+        // NOTE: when attached to a channel, size is unknown
+        // NOTE: could try to get size from channel, but not reliable
+        Tcl_WideInt size;
+        Tcl_WideInt pos = Tcl_Tell(tclChannel);
+        if (pos >= 0)
+            size = Tcl_Seek(tclChannel, 0, SEEK_END);
+        if (pos >= 0)
+            pos = Tcl_Seek(tclChannel, pos, SEEK_SET);
+        if (pos >= 0)
+            return (UInt64)size;
+        // NOTE: on error, return size 1 to avoid zero-size issues
+        return 1;
+    }
     if (!pathname)
         return 0;
     return GetSize(Tcl_NewStringObj(sevenzip::toBytes(pathname), -1));

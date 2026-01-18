@@ -59,7 +59,7 @@ test sevenzip2-1.1 {create syntax} -body {
 
 test sevenzip2-1.2 {create syntax}  -body {
     sevenzip create xxx xxx {}
-} -returnCodes 1 -result {bad option "xxx": must be -properties, -forcetype, -password, or -channel}
+} -returnCodes 1 -result {bad option "xxx": must be -properties, -forcetype, -password, -inputchannel, or -channel}
 
 test sevenzip2-1.3 {create syntax}  -body {
     sevenzip create -properties xxx {}
@@ -77,9 +77,13 @@ test sevenzip2-1.6 {create syntax} -body {
     sevenzip create -password xxx {}
 } -returnCodes 1 -result {"-password" option must be followed by password}
 
-test sevenzip2-2.0 {create syntax} -body {
+test sevenzip2-2.0 {create to invalid channel} -body {
     sevenzip create -channel xxx {}
 } -returnCodes 1 -result {can not find channel named "xxx"}
+
+test sevenzip2-2.1 {create from invalid channel} -body {
+    sevenzip create -inputchannel iii xxx {}
+} -returnCodes 1 -result {can not find channel named "iii"}
 
 test sevenzip2-2.2 {create archive of invalid type} -constraints {have7zip} -body {
     sevenzip create -forcetype xxx xxx {}
@@ -183,6 +187,22 @@ test sevenzip2-2.6m {create/list simple archive (7z)} -constraints {have7zip hav
     $z list
 } -result [list [file join [testsDirectory] files test.txt]]
 
+test sevenzip2-2.6.1 {create/list archive from channel (7z)} -constraints {have7zip} -setup {
+    set l [list [file join [testsDirectory] files test.txt]]
+    set f [file join [temporaryDirectory] sevenzip2.7z]
+    set i [open [lindex $l 0]]
+    set z ""
+} -cleanup {
+    catch {rename $z ""}; unset z
+    catch {file delete -force $f}; unset f
+    close $i; unset i
+    unset l
+} -body {
+    sevenzip create -forcetype 7z -inputchannel $i $f $l
+    set z [sevenzip open -forcetype 7z $f]
+    $z list
+} -result [list [file join [testsDirectory] files test.txt]]
+
 test sevenzip2-2.7 {create/extract simple archive (7z)} -constraints {have7zip} -setup {
     set l [list [file join [testsDirectory] files test.txt]]
     set f [file join [temporaryDirectory] sevenzip2.7z]
@@ -217,6 +237,25 @@ test sevenzip2-2.7m {create/extract simple archive (7z)} -constraints {have7zip 
     $z extract -channel $o [lindex $l 0]
     seek $o 0 start
     read $o
+} -result {test}
+
+test sevenzip2-2.7.1 {create/extract archive from channel (7z)} -constraints {have7zip} -setup {
+    set l [list [file join [testsDirectory] files test.txt]]
+    set f [file join [temporaryDirectory] sevenzip2.7z]
+    set e [file join [temporaryDirectory] sevenzip2.txt]
+    set i [open [lindex $l 0]]
+    set z ""
+} -cleanup {
+    catch {rename $z ""}; unset z
+    catch {file delete -force $e}; unset e
+    catch {file delete -force $f}; unset f
+    close $i; unset i
+    unset l
+} -body {
+    sevenzip create -forcetype 7z -inputchannel $i $f $l
+    set z [sevenzip open -forcetype 7z $f]
+    $z extract $e [lindex $l 0]
+    readFile $e
 } -result {test}
 
 test sevenzip2-2.8 {create/extract encrypted archive (7z)} -constraints {have7zip} -setup {

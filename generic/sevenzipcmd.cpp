@@ -358,10 +358,10 @@ int SevenzipCmd::CreateArchive(Tcl_Obj *pathnames, Tcl_Obj *destination, Tcl_Obj
     wchar_t buffer[1024];
     HRESULT hr = S_OK;
     if (source)
-        if (istream.AttachOpenChannel(source) != TCL_OK)
+        if (istream.AttachOpenChannel(source) != S_OK)
             return lastError(tclInterp, E_FAIL);
     if (usechannel)
-        if (ostream.AttachOpenChannel(destination) != TCL_OK)
+        if (ostream.AttachOpenChannel(destination) != S_OK)
             return lastError(tclInterp, E_FAIL);
     if (hr == S_OK)
         hr = archive.open(lib, istream, ostream,

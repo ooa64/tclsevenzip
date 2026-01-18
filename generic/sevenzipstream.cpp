@@ -539,7 +539,7 @@ static void getAttrIndices(Tcl_Obj *name, int *indices) {
     Tcl_Obj *stringsList = NULL;
     strings = (const char **)Tcl_FSFileAttrStrings(name, &stringsList);
     if (!strings && stringsList) {
-        int length = 0;
+        Tcl_Size length = 0;
     	Tcl_IncrRefCount(stringsList);
 	    Tcl_ListObjLength(NULL, stringsList, &length);
     	strings = (const char **)ckalloc((length + 1) * sizeof(char *));

@@ -205,7 +205,7 @@ int SevenzipCmd::Command (int objc, Tcl_Obj *const objv[]) {
                 case opProperties:
                     if (i < objc - 3) {
                         properties = objv[++i];
-                        int length;
+                        Tcl_Size length;
                         if (Tcl_ListObjLength(tclInterp, properties, &length) != TCL_OK)
                             return TCL_ERROR;
                         if (length % 2 != 0) {
@@ -355,7 +355,7 @@ int SevenzipCmd::CreateArchive(Tcl_Obj *pathnames, Tcl_Obj *destination,
                 password ? sevenzip::fromBytes(buffer, sizeof(buffer)/sizeof(wchar_t), Tcl_GetString(password)) : NULL,
                 type);
     if (hr == S_OK && properties) {
-        int length;
+        Tcl_Size length;
         if (Tcl_ListObjLength(tclInterp, properties, &length) != TCL_OK)
             return TCL_ERROR;
         for (int i = 0; i < length; i += 2) {
@@ -380,7 +380,7 @@ int SevenzipCmd::CreateArchive(Tcl_Obj *pathnames, Tcl_Obj *destination,
         }
     }
     if (hr == S_OK) {
-        int length;
+        Tcl_Size length;
         if (Tcl_ListObjLength(tclInterp, pathnames, &length) != TCL_OK)
             return TCL_ERROR;
         for (int i = 0; i < length; i++) {

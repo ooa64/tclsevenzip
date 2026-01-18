@@ -433,7 +433,7 @@ test sevenzip2-3.0 {check attributes for creating archive (7z)} -constraints {ha
     cd [temporaryDirectory]
     writeFile $e $e
     file attributes $e -readonly 1 -hidden 1 -system 1 -archive 1
-    file mtime $e [clock scan "2020-12-34 54:32:10"]
+    file mtime $e [clock scan "2100-01-02 03:04:05"]
 } -cleanup {
     catch {rename $z ""}; unset z
     catch {file delete -force $f}; unset f
@@ -445,7 +445,7 @@ test sevenzip2-3.0 {check attributes for creating archive (7z)} -constraints {ha
     set z [sevenzip open -forcetype 7z $f]
     array set a [lindex [$z list -info] 0]
     list $a(size) $a(mtime) $a(attrib)
-} -result {13 1609821130 39}
+} -result {13 4102535045 39}
 
 foreach {n p v r} {
     0 m lzma LZMA*

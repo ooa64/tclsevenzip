@@ -514,7 +514,7 @@ int SevenzipArchiveCmd::List(Tcl_Obj *list, Tcl_Obj *pattern, char type, int fla
                         break;
                     case VT_FILETIME:
                         if (archive.getTimeItemProperty(i, propId, uint32Value) == S_OK)
-                            value = Tcl_NewIntObj(uint32Value);
+                            value = Tcl_NewWideIntObj(uint32Value);
                         break;
                     default:
                         // DEBUGLOG(this << " SevenzipArchiveCmd::List info unknown item " << i << " prop id " << propId << " type " << propType);

@@ -26,6 +26,10 @@ enum {ATTR_READONLY, ATTR_HIDDEN, ATTR_SYSTEM, ATTR_ARCHIVE, ATTR_PERMISSIONS, A
 static UInt32 attrMasks[ATTR_COUNT] = {0x01, 0x02, 0x04, 0x20, 0x00};
 static void getAttrIndices(Tcl_Obj *name, int *indices);
 
+static HRESULT getResult(bool success);
+
+static Tcl_Channel getOpenChannel(Tcl_Interp *tclInterp, Tcl_Obj *channel, bool writable);
+static Tcl_Channel getFileChannel(Tcl_Interp *tclInterp, Tcl_Obj *filename, bool writable);
 
 SevenzipInStream::SevenzipInStream(Tcl_Interp *interp) : 
         tclInterp(interp), tclChannel(NULL), attached(false),
@@ -51,7 +55,7 @@ HRESULT SevenzipInStream::Open(const wchar_t *filename) {
     tclChannel = getFileChannel(tclInterp,
             Tcl_NewStringObj(sevenzip::toBytes(filename), -1), false);
     DEBUGLOG(this << " SevenzipInStream::Open channel " << tclChannel << " errno " << Tcl_GetErrno());
-    return sevenzip::getResult(tclChannel);
+    return getResult(tclChannel);
 }
 
 HRESULT SevenzipInStream::Read(void* data, UInt32 size, UInt32 &processed) {
@@ -65,7 +69,7 @@ HRESULT SevenzipInStream::Read(void* data, UInt32 size, UInt32 &processed) {
         Tcl_SetObjResult(tclInterp, Tcl_ObjPrintf(
                 "couldn't read from input stream: %s", Tcl_PosixError(tclInterp)));
     DEBUGLOG(this << " SevenzipInStream::Read processed " << result << " errno " << Tcl_GetErrno());
-    return sevenzip::getResult(result >= 0);
+    return getResult(result >= 0);
 }
 
 HRESULT SevenzipInStream::Seek(Int64 offset, UInt32 origin, UInt64 &position) {
@@ -79,7 +83,7 @@ HRESULT SevenzipInStream::Seek(Int64 offset, UInt32 origin, UInt64 &position) {
         Tcl_SetObjResult(tclInterp, Tcl_ObjPrintf(
                 "couldn't seek on input stream: %s", Tcl_PosixError(tclInterp)));
     DEBUGLOG(this << " SevenzipInStream::Seek position " << result << " errno " << Tcl_GetErrno());
-    return sevenzip::getResult(result >= 0);
+    return getResult(result >= 0);
 }
 
 void SevenzipInStream::Close() {
@@ -310,7 +314,7 @@ HRESULT SevenzipOutStream::Open(const wchar_t *filename) {
     tclChannel = getFileChannel(tclInterp,
             Tcl_NewStringObj(sevenzip::toBytes(filename), -1), true);
     DEBUGLOG(this << " SevenzipOutStream::Open channel " << tclChannel << " errno " << Tcl_GetErrno());
-    return sevenzip::getResult(tclChannel);
+    return getResult(tclChannel);
 }
 
 HRESULT SevenzipOutStream::Write(const void *data, UInt32 size, UInt32 &processed) {
@@ -324,7 +328,7 @@ HRESULT SevenzipOutStream::Write(const void *data, UInt32 size, UInt32 &processe
         Tcl_SetObjResult(tclInterp, Tcl_ObjPrintf(
                 "couldn't write to output stream: %s", Tcl_PosixError(tclInterp)));
     DEBUGLOG(this << " SevenzipOutStream::Write processed " << result << " errno " << Tcl_GetErrno());
-    return sevenzip::getResult(result >= 0);
+    return getResult(result >= 0);
 }
 
 HRESULT SevenzipOutStream::Seek(Int64 offset, UInt32 origin, UInt64 &position) {
@@ -338,7 +342,7 @@ HRESULT SevenzipOutStream::Seek(Int64 offset, UInt32 origin, UInt64 &position) {
         Tcl_SetObjResult(tclInterp, Tcl_ObjPrintf(
                 "couldn't seek on output stream: %s", Tcl_PosixError(tclInterp)));
     DEBUGLOG(this << " SevenzipOutStream::Seek position " << result << " errno " << Tcl_GetErrno());
-    return sevenzip::getResult(result >= 0);
+    return getResult(result >= 0);
 }
 
 void SevenzipOutStream::Close() {
@@ -500,14 +504,25 @@ Tcl_Channel SevenzipOutStream::DetachChannel() {
 int lastError(Tcl_Interp *interp, HRESULT hr) {
     if (Tcl_GetCharLength(Tcl_GetObjResult(interp)) == 0) {
         if (hr == S_OK)
-            hr = sevenzip::getResult(true);
+            hr = getResult(true);
         Tcl_SetObjResult(interp, Tcl_NewStringObj(
                 sevenzip::toBytes(sevenzip::getMessage(hr)), -1));
     }
     return TCL_ERROR;
 }
 
-Tcl_Channel getOpenChannel(Tcl_Interp *tclInterp, Tcl_Obj *channel, bool writable) {
+static HRESULT getResult(bool success) {
+#if defined(_WIN32) && TCL_MAJOR_VERSION >= 9
+    // NOTE: on Windows with Tcl 9+ errno does not match Tcl_GetErrno()
+    if (!success && errno != Tcl_GetErrno()) {
+        DEBUGLOG("getResult mismatch: errno " << errno << " Tcl_GetErrno " << Tcl_GetErrno());
+        errno = Tcl_GetErrno();
+    }
+#endif
+    return sevenzip::getResult(success);
+}
+
+static Tcl_Channel getOpenChannel(Tcl_Interp *tclInterp, Tcl_Obj *channel, bool writable) {
     int mode;
     Tcl_Channel tclChannel = Tcl_GetChannel(tclInterp, Tcl_GetString(channel), &mode);
     if (tclChannel == NULL) {
@@ -526,7 +541,7 @@ Tcl_Channel getOpenChannel(Tcl_Interp *tclInterp, Tcl_Obj *channel, bool writabl
     return tclChannel;
 }
 
-Tcl_Channel getFileChannel(Tcl_Interp *tclInterp, Tcl_Obj *filename, bool writable) {
+static Tcl_Channel getFileChannel(Tcl_Interp *tclInterp, Tcl_Obj *filename, bool writable) {
     Tcl_IncrRefCount(filename);
     Tcl_Channel tclChannel = Tcl_FSOpenFileChannel(tclInterp, filename, writable ? "wb" : "rb", 0644);
     if (tclChannel == NULL) {

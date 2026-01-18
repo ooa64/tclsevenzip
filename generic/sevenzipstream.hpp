@@ -78,7 +78,5 @@ private:
 };
 
 int lastError(Tcl_Interp *interp, HRESULT hr);
-Tcl_Channel getOpenChannel(Tcl_Interp *tclInterp, Tcl_Obj *channel, bool writable);
-Tcl_Channel getFileChannel(Tcl_Interp *tclInterp, Tcl_Obj *filename, bool writable);
 
 #endif

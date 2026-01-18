@@ -37,6 +37,11 @@ if {[info proc writeFile] eq ""} {
     }
 }
 
+proc deleteFile {filename} {
+    catch {file attributes $filename -readonly 0}
+    catch {file delete -force $filename}
+}
+
 proc readAttributes {filename} {
     set mode 0
     set attrib 0
@@ -196,7 +201,7 @@ test sevenzip-2.2.6 {open nonreadable channel} -constraints have7zip -setup {
 } -body {
     sevenzip open -c $chn
 } -cleanup {
-    close $chn
+    close $chn; unset chn
 } -returnCodes 1 -result {channel "*" wasn't opened for reading} -match glob
 
 test sevenzip-2.2.7 {open nonseekable channel} -constraints have7zip -body {
@@ -207,25 +212,25 @@ test sevenzip-2.2.7 {open nonseekable channel} -constraints have7zip -body {
 test sevenzip-2.6 {open by force type} -constraints have7zip -body {
     set cmd [sevenzip open -forcetype 7z [file join [testsDirectory] files test.7z]]
 } -cleanup {
-    rename $cmd ""
+    rename $cmd ""; unset cmd
 } -result {^sevenzip\d+$} -match regexp
 
 test sevenzip-2.7 {open by file extension} -constraints have7zip -body {
     set cmd [sevenzip open [file join [testsDirectory] files test.7z]]
 } -cleanup {
-    rename $cmd ""
+    rename $cmd ""; unset cmd
 } -result {^sevenzip\d+$} -match regexp
 
 test sevenzip-2.8 {open by file signature} -constraints have7zip -body {
     set cmd [sevenzip open -detecttype [file join [testsDirectory] files test.7z]]
 } -cleanup {
-    rename $cmd ""
+    rename $cmd ""; unset cmd
 } -result {^sevenzip\d+$} -match regexp
 
 test sevenzip-2.9 {open encrypted header} -constraints have7zip -body {
     set cmd [sevenzip open -p TEST [file join [testsDirectory] files testPWD0.7z]]
 } -cleanup {
-    rename $cmd ""
+    rename $cmd ""; unset cmd
 } -result {^sevenzip\d+$} -match regexp
 
 test sevenzip-3.0 {command syntax} -constraints have7zip -setup {
@@ -233,7 +238,7 @@ test sevenzip-3.0 {command syntax} -constraints have7zip -setup {
 } -body {
     $cmd
 } -cleanup {
-    rename $cmd ""
+    rename $cmd ""; unset cmd
 } -returnCodes 1 -result {wrong # args: should be "sevenzip* subcommand"} -match glob
 
 test sevenzip-3.1 {command bad subcommand} -constraints have7zip -setup {
@@ -241,7 +246,7 @@ test sevenzip-3.1 {command bad subcommand} -constraints have7zip -setup {
 } -body {
     $cmd xxx
 } -cleanup {
-    rename $cmd ""
+    rename $cmd ""; unset cmd
 } -returnCodes 1 -result {bad subcommand "xxx": must be info, count, list, extract, or close}
 
 test sevenzip-3.2 {command close} -constraints have7zip -setup {
@@ -253,7 +258,7 @@ test sevenzip-3.2 {command close} -constraints have7zip -setup {
 test sevenzip-3.3 {command info} -constraints have7zip -setup {
     set cmd [sevenzip open [file join [testsDirectory] files test.7z]]
 } -cleanup {
-    $cmd close
+    $cmd close; unset cmd
 } -body {
     $cmd info
 } -result {headerssize 122 method LZMA:12 solid 0}
@@ -264,7 +269,7 @@ test sevenzip-3.3 {command info} -constraints have7zip -setup {
 test sevenzip-3.3.1 {command info (tar)} -constraints have7zip -setup {
     set cmd [sevenzip open [file join [testsDirectory] files test.tar]]
 } -cleanup {
-    $cmd close
+    $cmd close; unset cmd
 } -body {
     $cmd info
 } -result {headerssize 1536 codepage UTF-8 characts {POSIX ASCII}}
@@ -274,7 +279,7 @@ test sevenzip-3.4 {command count} -constraints have7zip -setup {
 } -body {
     $cmd count
 } -cleanup {
-    $cmd close
+    $cmd close; unset cmd
 } -result {1}
 
 test sevenzip-4.0 {command list bad syntax} -constraints have7zip -setup {
@@ -282,7 +287,7 @@ test sevenzip-4.0 {command list bad syntax} -constraints have7zip -setup {
 } -body {
     $cmd list x x
 } -cleanup {
-    $cmd close
+    $cmd close; unset cmd
 } -returnCodes 1 -result {bad option "x": must be -info, -nocase, -exact, -type, or --}
 
 test sevenzip-4.1 {command list bad option} -constraints have7zip -setup {
@@ -290,7 +295,7 @@ test sevenzip-4.1 {command list bad option} -constraints have7zip -setup {
 } -body {
     $cmd list -xxx * --
 } -cleanup {
-    $cmd close
+    $cmd close; unset cmd
 } -returnCodes 1 -result {bad option "-xxx": must be -info, -nocase, -exact, -type, or --}
 
 test sevenzip-4.2 {command list bad type option} -constraints have7zip -setup {
@@ -298,7 +303,7 @@ test sevenzip-4.2 {command list bad type option} -constraints have7zip -setup {
 } -body {
     $cmd list -type x
 } -cleanup {
-    $cmd close
+    $cmd close; unset cmd
 } -returnCodes 1 -result {"-type" option must be followed by "d" or "f"}
 
 test sevenzip-4.3 {command list} -constraints have7zip -setup {
@@ -306,7 +311,7 @@ test sevenzip-4.3 {command list} -constraints have7zip -setup {
 } -body {
     $cmd list
 } -cleanup {
-    $cmd close
+    $cmd close; unset cmd
 } -result {test.txt}
 
 test sevenzip-4.3.0 {command list using memchan} -constraints {have7zip haveMemchan} -setup {
@@ -320,8 +325,8 @@ test sevenzip-4.3.0 {command list using memchan} -constraints {have7zip haveMemc
 } -body {
     $cmd list
 } -cleanup {
-    $cmd close
-    close $in
+    $cmd close; unset cmd
+    close $in; unset in
 } -result {test.txt}
 
 test sevenzip-4.3.1 {command list from channel forcetype} -constraints have7zip -setup {
@@ -331,8 +336,8 @@ test sevenzip-4.3.1 {command list from channel forcetype} -constraints have7zip 
 } -body {
     $cmd list
 } -cleanup {
-    $cmd close
-    close $in
+    $cmd close; unset cmd
+    close $in; unset in
 } -result {test.txt}
 
 test sevenzip-4.3.2 {command list from channel detecttype} -constraints have7zip -setup {
@@ -342,8 +347,8 @@ test sevenzip-4.3.2 {command list from channel detecttype} -constraints have7zip
 } -body {
     $cmd list
 } -cleanup {
-    $cmd close
-    close $in
+    $cmd close; unset cmd
+    close $in; unset in
 } -result {test.txt}
 
 foreach {n c} {
@@ -372,7 +377,7 @@ foreach {n c} {
     } -body {
         $cmd list {*}$c
     } -cleanup {
-        $cmd close
+        $cmd close; unset cmd
     } -result {test.txt}
     unset n c
 }
@@ -389,7 +394,7 @@ foreach {n c} {
     } -body {
         $cmd list {*}$c
     } -cleanup {
-        $cmd close
+        $cmd close; unset cmd
     } -result {}
     unset n c
 }
@@ -399,7 +404,7 @@ test sevenzip-4.10 {detailed list} -constraints have7zip -setup {
 } -body {
     $cmd list -info
 } -cleanup {
-    $cmd close
+    $cmd close; unset cmd
 } -result {{path test.txt size 4 packsize 9 mtime 1759752741 attrib 33 crc -662733300 encrypted 0 method LZMA:12 block 0 isdir 0}}
 # -result {{packsize 9 attrib 33 mtime 1759752741 encrypted 0 path test.txt isdir 0 size 4}}
 
@@ -408,7 +413,7 @@ test sevenzip-4.10.1 {detailed list (tar), check for duplicated isdir} -constrai
 } -body {
     $cmd list -info
 } -cleanup {
-    $cmd close
+    $cmd close; unset cmd
 } -result {{path test.txt isdir 0 size 4 packsize 512 mtime 1759752741 posixattrib 33060 userid 0 groupid 0 characts {0 POSIX ASCII} devicemajor 0 deviceminor 0}}
 
 test sevenzip-4.11 {complex list} -constraints have7zip -setup {
@@ -416,7 +421,7 @@ test sevenzip-4.11 {complex list} -constraints have7zip -setup {
 } -body {
     join [$cmd list] \n
 } -cleanup {
-    $cmd close
+    $cmd close; unset cmd
 } -result {testDIRS
 testDIRS/test1
 testDIRS/test2
@@ -438,7 +443,7 @@ test sevenzip-4.12 {complex list files} -constraints have7zip -setup {
 } -body {
     join [$cmd list -type f] \n
 } -cleanup {
-    $cmd close
+    $cmd close; unset cmd
 } -result {testDIRS/test2/test21.txt
 testDIRS/test2/test22.txt
 testDIRS/test2/test23.txt
@@ -452,7 +457,7 @@ test sevenzip-4.13 {complex list dirs} -constraints have7zip -setup {
 } -body {
     join [$cmd list -type d] \n
 } -cleanup {
-    $cmd close
+    $cmd close; unset cmd
 } -result {testDIRS
 testDIRS/test1
 testDIRS/test2
@@ -467,7 +472,7 @@ test sevenzip-4.14 {complex list mask} -constraints have7zip -setup {
 } -body {
     join [$cmd list -nocase -type d {*/*/*/*T3*}] \n
 } -cleanup {
-    $cmd close
+    $cmd close; unset cmd
 } -result {testDIRS/test3/test33/test331}
 
 test sevenzip-4.15 {complex detailed list} -constraints have7zip -setup {
@@ -475,7 +480,7 @@ test sevenzip-4.15 {complex detailed list} -constraints have7zip -setup {
 } -body {
     join [$cmd list -info] \n
 } -cleanup {
-    $cmd close
+    $cmd close; unset cmd
 } -result {path testDIRS size 0 packsize 0 mtime 1759411690 attrib 16 encrypted 0 isdir 1
 path testDIRS/test1 size 0 packsize 0 mtime 1759410798 attrib 16 encrypted 0 isdir 1
 path testDIRS/test2 size 0 packsize 0 mtime 1759411705 attrib 16 encrypted 0 isdir 1
@@ -512,7 +517,7 @@ test sevenzip-4.16 {intl list} -constraints {have7zip encodingOk} -setup {
 } -body {
     join [$cmd list] \n
 } -cleanup {
-    $cmd close
+    $cmd close; unset cmd
 } -result {тест
 тест/тест1
 тест/тест1/тест1.txt}
@@ -522,7 +527,7 @@ test sevenzip-4.17 {intl detailed list} -constraints {have7zip encodingOk} -setu
 } -body {
     join [$cmd list -info] \n
 } -cleanup {
-    $cmd close
+    $cmd close; unset cmd
 } -result {path тест size 0 packsize 0 mtime 1759411064 attrib 16 encrypted 0 isdir 1
 path тест/тест1 size 0 packsize 0 mtime 1759818836 attrib 16 encrypted 0 isdir 1
 path тест/тест1/тест1.txt size 9 packsize 14 mtime 1759818836 attrib 32 crc 553607347 encrypted 0 method LZMA:12 block 0 isdir 0}
@@ -535,7 +540,7 @@ test sevenzip-4.18 {intl list match} -constraints {have7zip encodingOk} -setup {
 } -body {
     join [$cmd list -nocase *Т1.???] \n
 } -cleanup {
-    $cmd close
+    $cmd close; unset cmd
 } -result {тест/тест1/тест1.txt}
 
 test sevenzip-4.19 {encrypted archive list} -constraints have7zip -setup {
@@ -543,7 +548,7 @@ test sevenzip-4.19 {encrypted archive list} -constraints have7zip -setup {
 } -body {
     $cmd list -info
 } -cleanup {
-    $cmd close
+    $cmd close; unset cmd
 } -result {{path test.txt size 4 packsize 16 mtime 1759752741 attrib 33 crc -662733300 encrypted 1 method {LZMA:12 7zAES:19} block 0 isdir 0}}
 # -result {{packsize 16 attrib 33 mtime 1759752741 encrypted 1 path test.txt isdir 0 size 4}}
 
@@ -552,7 +557,7 @@ test sevenzip-4.20 {encrypted item list} -constraints have7zip -setup {
 } -body {
     $cmd list -info
 } -cleanup {
-    $cmd close
+    $cmd close; unset cmd
 } -result {{path test.txt size 4 packsize 16 mtime 1759752741 attrib 33 crc -662733300 encrypted 1 method {LZMA:12 7zAES:19} block 0 isdir 0}}
 # -result {{packsize 16 attrib 33 mtime 1759752741 encrypted 1 path test.txt isdir 0 size 4}}
 
@@ -561,7 +566,7 @@ test sevenzip-5.0.1 {extract syntax} -constraints {have7zip} -setup {
 } -body {
     $cmd extract
 } -cleanup {
-    $cmd close
+    $cmd close; unset cmd
 } -returnCodes 1 -result {wrong # args: should be "sevenzip* extract ?options? path item"} -match glob
 
 test sevenzip-5.0.2 {extract syntax} -constraints {have7zip} -setup {
@@ -569,7 +574,7 @@ test sevenzip-5.0.2 {extract syntax} -constraints {have7zip} -setup {
 } -body {
     $cmd extract xxx
 } -cleanup {
-    $cmd close
+    $cmd close; unset cmd
 } -returnCodes 1 -result {wrong # args: should be "sevenzip* extract ?options? path item"} -match glob
 
 test sevenzip-5.0.3 {extract syntax} -constraints {have7zip} -setup {
@@ -577,7 +582,7 @@ test sevenzip-5.0.3 {extract syntax} -constraints {have7zip} -setup {
 } -body {
     $cmd extract -p xxx xxx
 } -cleanup {
-    $cmd close
+    $cmd close; unset cmd
 } -returnCodes 1 -result {"-password" option must be followed by password} -match glob
 
 test sevenzip-5.0.4 {extract syntax} -constraints {have7zip} -setup {
@@ -585,7 +590,7 @@ test sevenzip-5.0.4 {extract syntax} -constraints {have7zip} -setup {
 } -body {
     $cmd extract -c -p xxx ooo xxx xxx
 } -cleanup {
-    $cmd close
+    $cmd close; unset cmd
 } -returnCodes 1 -result {bad option "ooo": must be -password or -channel} -match glob
 
 test sevenzip-5.1 {extract invalid source} -constraints {have7zip} -setup {
@@ -594,7 +599,7 @@ test sevenzip-5.1 {extract invalid source} -constraints {have7zip} -setup {
 } -body {
     $cmd extract $out notexistent
 } -cleanup {
-    $cmd close
+    $cmd close; unset cmd
 } -returnCodes 1 -result {no such item "notexistent" in the archive}
 
 test sevenzip-5.2 {extract invalid destination} -constraints {have7zip} -setup {
@@ -603,7 +608,7 @@ test sevenzip-5.2 {extract invalid destination} -constraints {have7zip} -setup {
 } -body {
     $cmd extract $out test.txt
 } -cleanup {
-    $cmd close
+    $cmd close; unset cmd
 } -returnCodes 1 -result {couldn't open file "*/notexistent/test.txt": no such file or directory} -match glob
 # -returnCodes 1 -result {couldn't create file "*/notexistent/test.txt": no such file or directory} -match glob
 
@@ -614,8 +619,8 @@ test sevenzip-5.3 {extract ok} -constraints {have7zip} -setup {
     $cmd extract $out test.txt
     file exists $out
 } -cleanup {
-    $cmd close
-    file delete $out
+    $cmd close; unset cmd
+    deleteFile $out; unset out
 } -result 1
 
 test sevenzip-5.4 {extract data} -constraints {have7zip} -setup {
@@ -625,8 +630,8 @@ test sevenzip-5.4 {extract data} -constraints {have7zip} -setup {
     $cmd extract $out test.txt
     readFile $out
 } -cleanup {
-    $cmd close
-    file delete $out
+    $cmd close; unset cmd
+    deleteFile $out; unset out
 } -result {test}
 
 test sevenzip-5.4.1 {extract data to nonwritable channel} -constraints {have7zip} -setup {
@@ -637,9 +642,9 @@ test sevenzip-5.4.1 {extract data to nonwritable channel} -constraints {have7zip
 } -body {
     $cmd extract -c $chn test.txt
 } -cleanup {
-    close $chn
-    $cmd close
-    file delete $out
+    close $chn; unset chn
+    $cmd close; unset cmd
+    deleteFile $out; unset out
 } -returnCodes 1 -result {channel "*" wasn't opened for writing} -match glob
 
 test sevenzip-5.4.2 {extract data to channel} -constraints {have7zip} -setup {
@@ -651,9 +656,9 @@ test sevenzip-5.4.2 {extract data to channel} -constraints {have7zip} -setup {
     flush $chn
     readFile $out
 } -cleanup {
-    close $chn
-    $cmd close
-    file delete $out
+    close $chn; unset chn
+    $cmd close; unset cmd
+    deleteFile $out; unset out
 } -result {test}
 
 test sevenzip-5.4.3 {extract data to memchan} -constraints {have7zip haveMemchan} -setup {
@@ -664,8 +669,8 @@ test sevenzip-5.4.3 {extract data to memchan} -constraints {have7zip haveMemchan
     seek $chn 0
     read $chn
 } -cleanup {
-    close $chn
-    $cmd close
+    close $chn; unset chn
+    $cmd close; unset cmd
 } -result {test}
 
 test sevenzip-5.5 {extract data, destination exists} -constraints {have7zip} -setup {
@@ -677,7 +682,7 @@ test sevenzip-5.5 {extract data, destination exists} -constraints {have7zip} -se
     readFile $out
 } -cleanup {
     $cmd close
-    file delete $out
+    deleteFile $out; unset out
 } -result {test}
 
 test sevenzip-5.6 {extract data with path} -constraints {have7zip} -setup {
@@ -689,7 +694,7 @@ test sevenzip-5.6 {extract data with path} -constraints {have7zip} -setup {
     readFile $out
 } -cleanup {
     $cmd close
-    file delete $out
+    deleteFile $out; unset out
 } -result {test321}
 
 test sevenzip-5.7 {extract intl} -constraints {have7zip encodingOk} -setup {
@@ -701,7 +706,7 @@ test sevenzip-5.7 {extract intl} -constraints {have7zip encodingOk} -setup {
     readFile $out
 } -cleanup {
     $cmd close
-    file delete $out
+    deleteFile $out; unset out
 } -result {тест1}
 
 test sevenzip-5.8 {extract encrypted data error} -constraints {have7zip} -setup {
@@ -713,7 +718,7 @@ test sevenzip-5.8 {extract encrypted data error} -constraints {have7zip} -setup 
     readFile $out
 } -cleanup {
     $cmd close
-    file delete $out
+    deleteFile $out; unset out
 } -result {Need password} -match nocase -returnCodes 1
 # -result {}
 
@@ -726,7 +731,7 @@ test sevenzip-5.9 {extract encrypted data with archive password} -constraints {h
     readFile $out
 } -cleanup {
     $cmd close
-    file delete $out
+    deleteFile $out; unset out
 } -result {test}
 
 test sevenzip-5.9.1 {extract encrypted data with invalid archive password} -constraints {have7zip} -body {
@@ -742,7 +747,7 @@ test sevenzip-5.10 {extract data with item password using archive password} -con
     readFile $out
 } -cleanup {
     $cmd close
-    file delete $out
+    deleteFile $out; unset out
 } -result {test}
 
 test sevenzip-5.10.1 {extract data with item password using invalid archive password} -constraints {have7zip} -setup {
@@ -754,7 +759,7 @@ test sevenzip-5.10.1 {extract data with item password using invalid archive pass
     readFile $out
 } -cleanup {
     $cmd close
-    file delete $out
+    deleteFile $out; unset out
 } -result {*Unspecified error} -match glob -returnCodes 1
 
 test sevenzip-5.11 {extract data with item password} -constraints {have7zip} -setup {
@@ -766,7 +771,7 @@ test sevenzip-5.11 {extract data with item password} -constraints {have7zip} -se
     readFile $out
 } -cleanup {
     $cmd close
-    file delete $out
+    deleteFile $out; unset out
 } -result {test}
 
 test sevenzip-5.11.1 {extract data with item password} -constraints {have7zip} -setup {
@@ -778,7 +783,7 @@ test sevenzip-5.11.1 {extract data with item password} -constraints {have7zip} -
     readFile $out
 } -cleanup {
     $cmd close
-    file delete $out
+    deleteFile $out; unset out
 } -result {*Unspecified error} -match glob -returnCodes 1
 
 test sevenzip-6.2 {open multivolume} -constraints {have7zip} -body {
@@ -797,14 +802,13 @@ test sevenzip-6.3 {list multivolume} -constraints {have7zip} -setup {
 test sevenzip-6.4 {extract multivolume} -constraints {have7zip} -setup {
     set cmd [sevenzip open -f [sevenzip format "001"] [file join [testsDirectory] files testMVOL.7z.001]]
     set out [file join [temporaryDirectory] test.txt]
-    catch {file delete $out}
     writeFile $out "TEST"
 } -body {
     $cmd extract $out test/test.txt
     string length [readFile $out]
 } -cleanup {
     $cmd close
-    file delete $out
+    deleteFile $out; unset out
 } -result {1024}
 
 foreach {n x} {0 .7z 1 .zip 2 .rar 3 .tar 4 .arj} {
@@ -838,7 +842,7 @@ foreach {n x} {0 .7z 1 .zip 2 .rar 3 .tar 4 .arj} {
         readFile $out
     } -cleanup {
         $cmd close
-        file delete $out
+        deleteFile $out; unset out
     } -result {test}
     unset n x
 }
@@ -902,7 +906,7 @@ test sevenzip-7.3.5.1 "look into tgz (and into tar inside)" -constraints {have7z
 } -cleanup {
     $cmd close
     $cmd1 close
-    close $in
+    close $in; unset in
 } -result {testDIRS
 testDIRS/test1
 testDIRS/test2
@@ -927,7 +931,7 @@ test sevenzip-8.0.1 {check extracted windows attributes for 7z} -constraints {ha
     file stat $out outstat
     $cmd close
 } -cleanup {
-    file delete -force $out
+    deleteFile $out; unset out
     unset cmd outstat
 } -body {
     list $outstat(size) $outstat(mtime) $outstat(attrib)
@@ -941,7 +945,7 @@ test sevenzip-8.0.2 {check extracted unix mode for tar on windows} -constraints 
     file stat $out outstat
     $cmd close
 } -cleanup {
-    file delete -force $out
+    deleteFile $out; unset out
     unset cmd outstat
 } -body {
     list $outstat(size) $outstat(mtime) [format %o $outstat(mode)]
@@ -955,7 +959,7 @@ test sevenzip-8.0.2 {check extracted unix mode for tar on unix} -constraints {ha
     file stat $out outstat
     $cmd close
 } -cleanup {
-    file delete -force $out
+    deleteFile $out
     unset cmd outstat
 } -body {
     list $outstat(size) $outstat(mtime) [format %o $outstat(mode)]
@@ -985,8 +989,8 @@ foreach {n x} {0 .7z 1 .zip 2 .rar 3 .tar 4 .arj 10 MAC.7z 11 MAC.zip 12 MAC.rar
                     [expr {$arcstat(posixattrib) > 0 ? $outstat(mode) : 0}] \
                     [expr {$arcstat(attrib) > 0 ? $outstat(attrib) : 0}]] \
     } -cleanup {
-        file delete -force $out
-        unset arcstat outstat
+        deleteFile $out
+        unset cmd arcstat outstat
     } -result {} -match twostrings
     unset n x
 }
@@ -1014,7 +1018,7 @@ test sevenzip-9.1 {read in the child interp} -constraints {have7zip} -setup {
     }} [file join [testsDirectory] files test.7z] $out]
     readFile $out
 } -cleanup {
-    file delete $out
+    deleteFile $out
     interp delete i
 } -result {test}
 

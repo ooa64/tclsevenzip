@@ -66,7 +66,7 @@ testConstraint haveMemchan [expr {![catch {package require tcl::chan::memchan}]}
 testConstraint encodingOk [expr {"тест" eq "\u0442\u0435\u0441\u0442"}]
 
 if {[testConstraint have7zip]} {
-    foreach e {7z zip rar tar arj} {
+    foreach e {7z zip rar tar arj dmg hfs} {
         testConstraint supported.$e [expr {$e in [sevenzip extensions]}]
     }
 }
@@ -180,7 +180,15 @@ test sevenzip-2.2.1 {open notexistent} -constraints have7zip -body {
 } -returnCodes 1 -result {couldn't open file "*/files/notexistent": no such file or directory} -match glob
 # -returnCodes 1 -result {couldn't read file "*/files/notexistent": no such file or directory} -match glob
 
-test sevenzip-2.2.2 {open unknown format} -constraints have7zip -body {
+test sevenzip-2.2.2.1 {open unknown format (default)} -constraints have7zip -body {
+    sevenzip open [file join [testsDirectory] files test.txt]
+} -returnCodes 1 -match nocase -result {Not supported}
+
+test sevenzip-2.2.2.2 {open unknown format (detect)} -constraints have7zip -body {
+    sevenzip open -detect [file join [testsDirectory] files test.txt]
+} -returnCodes 1 -match nocase -result {Not supported}
+
+test sevenzip-2.2.2.3 {open unknown format (force)} -constraints have7zip -body {
     sevenzip open -forcetype txt [file join [testsDirectory] files test.txt]
 } -returnCodes 1 -match nocase -result {Not supported}
 
@@ -799,8 +807,8 @@ test sevenzip-6.3 {list multivolume} -constraints {have7zip} -setup {
     $cmd close
 } -result {test test/test.txt}
 
-test sevenzip-6.4 {extract multivolume} -constraints {have7zip} -setup {
-    set cmd [sevenzip open -f [sevenzip format "001"] [file join [testsDirectory] files testMVOL.7z.001]]
+test sevenzip-6.4.1 {extract multivolume (defaulf)} -constraints {have7zip} -setup {
+    set cmd [sevenzip open [file join [testsDirectory] files testMVOL.7z.001]]
     set out [file join [temporaryDirectory] test.txt]
     writeFile $out "TEST"
 } -body {
@@ -810,6 +818,92 @@ test sevenzip-6.4 {extract multivolume} -constraints {have7zip} -setup {
     $cmd close
     deleteFile $out; unset out
 } -result {1024}
+
+test sevenzip-6.4.3 {extract multivolume (force)} -constraints {have7zip} -setup {
+    # NOTE: do not use '-f 001', because 001 seems not like an extension, but like an integer index
+    set cmd [sevenzip open -f [sevenzip format 001] [file join [testsDirectory] files testMVOL.7z.001]]
+    set out [file join [temporaryDirectory] test.txt]
+    writeFile $out "TEST"
+} -body {
+    $cmd extract $out test/test.txt
+    string length [readFile $out]
+} -cleanup {
+    $cmd close
+    deleteFile $out; unset out
+} -result {1024}
+
+test sevenzip-6.5.1 {extract dmg (default)} -constraints {have7zip supported.dmg supported.hfs} -setup {
+    set cmd [sevenzip open [file join [testsDirectory] files testHFS.dmg]]
+    set out [file join [temporaryDirectory] test.txt]
+    writeFile $out "TEST"
+} -body {
+    $cmd extract $out test/test.txt
+    string length [readFile $out]
+} -cleanup {
+    $cmd close
+    deleteFile $out; unset out
+} -result {1024}
+
+test sevenzip-6.5.2 {extract dmg (detect)} -constraints {have7zip supported.dmg supported.hfs} -setup {
+    set cmd [sevenzip open -detect [file join [testsDirectory] files testHFS.dmg]]
+    set out [file join [temporaryDirectory] test.txt]
+    writeFile $out "TEST"
+} -body {
+    $cmd extract $out test/test.txt
+    string length [readFile $out]
+} -cleanup {
+    $cmd close
+    deleteFile $out; unset out
+} -result {1024}
+
+test sevenzip-6.5.3 {extract dmg (force)} -constraints {have7zip supported.dmg supported.hfs} -setup {
+    set cmd [sevenzip open -force dmg [file join [testsDirectory] files testHFS.dmg]]
+    set out [file join [temporaryDirectory] test.txt]
+    writeFile $out "TEST"
+} -body {
+    $cmd extract $out test/test.txt
+    string length [readFile $out]
+} -cleanup {
+    $cmd close
+    deleteFile $out; unset out
+} -result {1024}
+
+test sevenzip-6.6.1 {extract from embedded zip (default)} -constraints {have7zip supported.zip} -setup {
+    set cmd [sevenzip open [file join [testsDirectory] files testMBED.zip]]
+    set out [file join [temporaryDirectory] test.txt]
+    writeFile $out "TEST"
+} -body {
+    $cmd extract $out test.txt
+    readFile $out
+} -cleanup {
+    $cmd close
+    deleteFile $out; unset out
+} -result {test}
+
+test sevenzip-6.6.2 {extract from embedded zip (detect)} -constraints {have7zip supported.zip embeddedArchiveBug} -setup {
+    set cmd [sevenzip open -detect [file join [testsDirectory] files testMBED.zip]]
+    set out [file join [temporaryDirectory] test.txt]
+    writeFile $out "TEST"
+} -body {
+    $cmd extract $out test.txt
+    readFile $out
+} -cleanup {
+    $cmd close
+    deleteFile $out; unset out
+} -result {test}
+
+test sevenzip-6.6.3 {extract from embedded zip (force)} -constraints {have7zip supported.zip} -setup {
+    set cmd [sevenzip open -force zip [file join [testsDirectory] files testMBED.zip]]
+    set out [file join [temporaryDirectory] test.txt]
+    writeFile $out "TEST"
+} -body {
+    $cmd extract $out test.txt
+    readFile $out
+} -cleanup {
+    $cmd close
+    deleteFile $out; unset out
+} -result {test}
+
 
 foreach {n x} {0 .7z 1 .zip 2 .rar 3 .tar 4 .arj} {
     test sevenzip-7.0.$n "look into $x" -constraints [list have7zip supported$x] -setup {

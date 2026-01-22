@@ -4,7 +4,7 @@ add option -directory to create to avoid cd to dir first:
 
 add option -directory to extract items to the directory:
 	handle extract ?-password password? ?-channel? <pathOrChannel> <itemName> 
-	handle extract ?-password password? ?-directory dir? ?-nocase? ?-exact? ?-type f|d? ?-path itemPpath? ?--? ?<itemPattern>?
+	handle extract ?-password password? ?-directory dir? ?-nocase? ?-exact? ?-type f|d? ?-path itemPath? ?--? ?<itemPattern>?
 		
 add option -path to list to limit command output to the contents of a directory:
 	handle list ?-info? ?-nocase? ?-exact? ?-type f|d? ?--? ?<itemPattern>?
@@ -17,6 +17,8 @@ progress callbacks:
 	handle extract ?-callback script? ...
 	sevenzip create ?-callback script? ...
 		where callback is `proc cb {op??? item? progress? total?}`
+
+fix vfs bug: error opening archive (tar,cpio) that contains directory element "." or "..", for example ./bla
 
 internals: streams should be owned by callbacks as members?
 

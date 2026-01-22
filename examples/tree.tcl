@@ -25,7 +25,7 @@ set w {}
 ## See Code / Dismiss
 # pack [addSeeDismiss $w.seeDismiss $w] -side bottom -fill x
 
-package require vfs::sevenzip
+package require vfs::sevenzip 0.3
 
 set exts [sevenzip extensions]
 

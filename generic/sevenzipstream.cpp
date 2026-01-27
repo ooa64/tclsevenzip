@@ -195,6 +195,7 @@ UInt32 SevenzipInStream::GetMode(Tcl_Obj *pathname) {
     //     if (Tcl_FSFileAttrsGet(tclInterp, indices[ATTR_PERMISSIONS], pathname, &modeValue) == TCL_OK) {
     //         mode = strtol(Tcl_GetString(modeValue), NULL, 8);
     //         DEBUGLOG(this << " SevenzipOutStream::GetMode modeValue " << Tcl_GetString(modeValue) << " " << mode);
+    //         Tcl_DecrRefCount(modeValue);
     //     }
     // }
     // Tcl_DecrRefCount(pathname);
@@ -209,20 +210,21 @@ UInt32 SevenzipInStream::GetAttr(Tcl_Obj *pathname) {
     getAttrIndices(pathname, indices);
     for (int i = 0; i < ATTR_COUNT; i++)
         if (indices[i] >= 0) {
-            int attrSet;
             Tcl_Obj *attrValue;
-            if (Tcl_FSFileAttrsGet(tclInterp, indices[i], pathname, &attrValue) != TCL_OK) {
+            if (Tcl_FSFileAttrsGet(tclInterp, indices[i], pathname, &attrValue) == TCL_OK) {
+                int attrSet;
+                if (Tcl_GetBooleanFromObj(NULL, attrValue, &attrSet) == TCL_OK) {
+                    if (attrSet)
+                        attr |= attrMasks[i];
+                } else {
+                    DEBUGLOG(this << " SevenzipInStream::GetAttr expected boolean got: "
+                            << Tcl_GetString(attrValue)); 
+                }
+                Tcl_DecrRefCount(attrValue);
+            } else {
                 DEBUGLOG(this << " SevenzipInStream::GetAttr failed: "
                         << Tcl_GetStringResult(tclInterp));
-                continue;
             }
-            if (Tcl_GetBooleanFromObj(NULL, attrValue, &attrSet) != TCL_OK) {
-                DEBUGLOG(this << " SevenzipInStream::GetAttr expected boolean got: "
-                        << Tcl_GetString(attrValue)); 
-                continue;
-            }
-            if (attrSet)
-                attr |= attrMasks[i];
         }
     Tcl_DecrRefCount(pathname);
     return attr;

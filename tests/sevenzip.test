@@ -98,11 +98,13 @@ if {[testConstraint leaktest]} {
         }
         proc cleanupTests {args} {
             if {$::tcltest::leaks(count) != 0} {
-                puts stderr "WARNING: $::tcltest::leaks(count) memory leaks detected,\
+                puts stderr "WARNING: $::tcltest::leaks(count) tests with memory leak detected,\
                         $::tcltest::leaks(bytes) bytes leaked"
+                memory active sevenzip-leaks.txt
             }
             uplevel 1 [list ::tcltest::cleanupTests {*}$args]
         }
+        catch {file delete -force sevenzip-leaks.txt}
     }
 }
 

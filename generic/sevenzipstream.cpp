@@ -295,7 +295,7 @@ Tcl_StatBuf *SevenzipInStream::getStatBuf(Tcl_Obj *pathname) {
     if (statPath && strcmp(statPath, Tcl_GetString(pathname)) == 0)
         return statBuf;
     if (statPath)
-        ckfree((char *)statPath);
+        ckfree(statPath);
 
     statPath = (char *)ckalloc(strlen(Tcl_GetString(pathname)) + 1);
     strcpy(statPath, Tcl_GetString(pathname));
@@ -592,7 +592,9 @@ static void getAttrIndices(Tcl_Obj *name, int *indices) {
         indices[i] = -1;
     const char **strings = NULL;
     Tcl_Obj *stringsList = NULL;
+    Tcl_IncrRefCount(name);
     strings = (const char **)Tcl_FSFileAttrStrings(name, &stringsList);
+    Tcl_DecrRefCount(name);
     if (!strings && stringsList) {
         Tcl_Size length = 0;
     	Tcl_IncrRefCount(stringsList);

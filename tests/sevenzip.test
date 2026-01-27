@@ -71,6 +71,42 @@ if {[testConstraint have7zip]} {
     }
 }
 
+if {[testConstraint leaktest]} {
+    if {[info commands memory] eq ""} {
+        puts stderr "WARNING: leaktest requested but 'memory' command not available"
+    } else {
+        array set ::tcltest::leaks {count 0 bytes 0}
+        proc ::tcltest::getbytes {} {
+            lindex [split [memory info] \n] 3 3
+        }
+        proc ::tcltest::leaktest {script {iterations 3}} {
+            set end [getbytes]
+            for {set i 0} {$i < $iterations} {incr i} {
+                uplevel 1 $script
+                set tmp $end
+                set end [getbytes]
+            }
+            expr {$end - $tmp}
+        }
+        proc test {args} {
+            set leaked [::tcltest::leaktest {uplevel 1 [list ::tcltest::test {*}$args]} 3]
+            if {$leaked != 0} {
+                puts stderr "WARNING: memory leak detected: $leaked bytes"
+                incr ::tcltest::leaks(count)
+                incr ::tcltest::leaks(bytes) $leaked
+            }
+        }
+        proc cleanupTests {args} {
+            if {$::tcltest::leaks(count) != 0} {
+                puts stderr "WARNING: $::tcltest::leaks(count) memory leaks detected,\
+                        $::tcltest::leaks(bytes) bytes leaked"
+            }
+            uplevel 1 [list ::tcltest::cleanupTests {*}$args]
+        }
+    }
+}
+
+
 test sevenzip-1.0 {syntax} -body {
     sevenzip
 } -returnCodes 1 -result {wrong # args: should be "sevenzip subcommand"}

@@ -340,10 +340,13 @@ int SevenzipCmd::OpenArchive(Tcl_Obj *command, Tcl_Obj *source,
     HRESULT hr = S_OK;
     if (usechannel)
         hr = stream->AttachOpenChannel(source);
+    if (hr != S_OK)
+        delete stream;
     if (hr == S_OK)
         hr = archive->Open(lib, stream, usechannel ? NULL : source, password, type);
     if (hr != S_OK) {
         delete archive; 
+        Tcl_DecrRefCount(command);
         return lastError(tclInterp, hr);
     }
     Tcl_SetObjResult(tclInterp, command);

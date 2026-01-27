@@ -22,6 +22,14 @@
 #   define DEBUGLOG(_x_)
 #endif
 
+struct TclObj {
+    TclObj() = delete;
+    TclObj(const wchar_t *str) : obj(Tcl_NewStringObj(sevenzip::toBytes(str), -1)) {Tcl_IncrRefCount(obj);};
+    ~TclObj() {Tcl_DecrRefCount(obj);};
+    Tcl_Obj *get() {return obj;};
+    private: Tcl_Obj *obj;
+};
+
 enum {ATTR_READONLY, ATTR_HIDDEN, ATTR_SYSTEM, ATTR_ARCHIVE, ATTR_PERMISSIONS, ATTR_COUNT};
 static UInt32 attrMasks[ATTR_COUNT] = {0x01, 0x02, 0x04, 0x20, 0x00};
 static void getAttrIndices(Tcl_Obj *name, int *indices);
@@ -52,8 +60,8 @@ HRESULT SevenzipInStream::Open(const wchar_t *filename) {
     if (!filename)
         return E_FAIL;
 
-    tclChannel = getFileChannel(tclInterp,
-            Tcl_NewStringObj(sevenzip::toBytes(filename), -1), false);
+    TclObj path(filename);
+    tclChannel = getFileChannel(tclInterp, path.get(), false);
     DEBUGLOG(this << " SevenzipInStream::Open channel " << tclChannel << " errno " << Tcl_GetErrno());
     return getResult(tclChannel);
 }
@@ -106,7 +114,9 @@ bool SevenzipInStream::IsDir(const wchar_t* pathname) {
         return false;
     if (!pathname)
         return false;
-    return IsDir(Tcl_NewStringObj(sevenzip::toBytes(pathname), -1));
+
+    TclObj path(pathname);
+    return IsDir(path.get());    
 }
 
 UInt64 SevenzipInStream::GetSize(const wchar_t* pathname) {
@@ -123,12 +133,14 @@ UInt64 SevenzipInStream::GetSize(const wchar_t* pathname) {
             pos = Tcl_Seek(tclChannel, pos, SEEK_SET);
         if (pos >= 0)
             return (UInt64)size;
-        // NOTE: on error, return size 1 to avoid zero-size issues
+        // NOTE: on error, return size 1 (works in most cases)
         return 1;
     }
     if (!pathname)
         return 0;
-    return GetSize(Tcl_NewStringObj(sevenzip::toBytes(pathname), -1));
+
+    TclObj path(pathname);
+    return GetSize(path.get());
 }
 
 UInt32 SevenzipInStream::GetMode(const wchar_t *pathname) {
@@ -138,7 +150,9 @@ UInt32 SevenzipInStream::GetMode(const wchar_t *pathname) {
         return 0;
     if (!pathname)
         return 0;
-    return GetMode(Tcl_NewStringObj(sevenzip::toBytes(pathname), -1));
+
+    TclObj path(pathname);
+    return GetMode(path.get());
 }
 
 UInt32 SevenzipInStream::GetAttr(const wchar_t *pathname) {
@@ -148,7 +162,9 @@ UInt32 SevenzipInStream::GetAttr(const wchar_t *pathname) {
         return 0;
     if (!pathname)
         return 0;
-    return GetAttr(Tcl_NewStringObj(sevenzip::toBytes(pathname), -1));
+
+    TclObj path(pathname);
+    return GetAttr(path.get());
 }
 
 UInt32 SevenzipInStream::GetTime(const wchar_t *pathname) {
@@ -158,7 +174,9 @@ UInt32 SevenzipInStream::GetTime(const wchar_t *pathname) {
         return 0;
     if (!pathname)
         return 0;
-    return GetTime(Tcl_NewStringObj(sevenzip::toBytes(pathname), -1));
+
+    TclObj path(pathname);
+    return GetTime(path.get());
 }
 
 bool SevenzipInStream::IsDir(Tcl_Obj *pathname) {
@@ -313,8 +331,8 @@ HRESULT SevenzipOutStream::Open(const wchar_t *filename) {
     if (!filename)
         return E_FAIL;
 
-    tclChannel = getFileChannel(tclInterp,
-            Tcl_NewStringObj(sevenzip::toBytes(filename), -1), true);
+    TclObj path(filename);
+    tclChannel = getFileChannel(tclInterp, path.get(), true);
     DEBUGLOG(this << " SevenzipOutStream::Open channel " << tclChannel << " errno " << Tcl_GetErrno());
     return getResult(tclChannel);
 }
@@ -362,7 +380,9 @@ HRESULT SevenzipOutStream::Mkdir(const wchar_t* pathname) {
         return S_FALSE;
     if (!pathname)
         return S_FALSE;
-    return Mkdir(Tcl_NewStringObj(sevenzip::toBytes(pathname), -1));
+
+    TclObj path(pathname);
+    return Mkdir(path.get());
 }
 
 // HRESULT SevenzipOutStream::SetSize(const wchar_t* pathname, UInt64 size) {
@@ -377,7 +397,9 @@ HRESULT SevenzipOutStream::SetMode(const wchar_t* pathname, UInt32 mode) {
         return S_FALSE;
     if (!pathname)
         return S_FALSE;
-    return SevenzipOutStream::SetMode(Tcl_NewStringObj(sevenzip::toBytes(pathname), -1), mode);
+
+    TclObj path(pathname);
+    return SevenzipOutStream::SetMode(path.get(), mode);
 }
 
 HRESULT SevenzipOutStream::SetAttr(const wchar_t* pathname, UInt32 attr) {
@@ -387,7 +409,9 @@ HRESULT SevenzipOutStream::SetAttr(const wchar_t* pathname, UInt32 attr) {
         return S_FALSE;
     if (!pathname)
         return S_FALSE;
-    return SevenzipOutStream::SetAttr(Tcl_NewStringObj(sevenzip::toBytes(pathname), -1), attr);
+
+    TclObj path(pathname);
+    return SevenzipOutStream::SetAttr(path.get(), attr);
 }
 
 HRESULT SevenzipOutStream::SetTime(const wchar_t* pathname, UInt32 time) {
@@ -397,7 +421,9 @@ HRESULT SevenzipOutStream::SetTime(const wchar_t* pathname, UInt32 time) {
         return S_FALSE;
     if (!pathname)
         return S_FALSE;
-    return SetTime(Tcl_NewStringObj(sevenzip::toBytes(pathname), -1), time);
+
+    TclObj path(pathname);
+    return SetTime(path.get(), time);
 }
 
 HRESULT SevenzipOutStream::Mkdir(Tcl_Obj* dirname) {

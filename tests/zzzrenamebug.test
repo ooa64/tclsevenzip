@@ -1,19 +1,18 @@
-if {[lsearch [namespace children] ::tcltest] < 0} {
-    package require tcltest 2
-    namespace import ::tcltest::*
-}
-
+source [file join [file dirname [info script]] allutils.tcl]
 
 package require sevenzip 1
-catch {
-    if {[info exist env(7ZDLL)]} {
-        sevenzip initialize $env(7ZDLL)
-    } else {
-        sevenzip initialize            
+if {![sevenzip isinitialized]} {
+    catch {
+        if {[info exist env(7ZDLL)]} {
+            sevenzip initialize $env(7ZDLL)
+        } else {
+            sevenzip initialize
+        }
     }
 }
 
 testConstraint have7zip [sevenzip isinitialized]
+testConstraint noLeakTest [expr {![testConstraint leakTest]}]
 
 test zzzrenamebug-1.0 {create and drop sevenzip in the child interp} -constraints {have7zip} -setup {
     interp create i
@@ -28,7 +27,7 @@ test zzzrenamebug-1.0 {create and drop sevenzip in the child interp} -constraint
     interp delete i
 } -returnCodes 1 -result {invalid command name "sevenzip?*"} -match glob
 
-test zzzrenamebug-1.1 {drop sevenzip in main interpreter} -constraints {have7zip} -body {
+test zzzrenamebug-1.1 {drop sevenzip in main interpreter} -constraints {have7zip noLeakTest} -body {
     set cmd [sevenzip open [file join [testsDirectory] files test.7z]]
     rename sevenzip ""
     $cmd close

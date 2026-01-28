@@ -1,39 +1,12 @@
-if {[lsearch [namespace children] ::tcltest] < 0} {
-    package require tcltest 2
-    namespace import ::tcltest::*
-}
-
+source [file join [file dirname [info script]] allutils.tcl]
 
 package require sevenzip 1
-
-catch {
-    if {[info exist env(7ZDLL)]} {
-        sevenzip initialize $env(7ZDLL)
-    } else {
-        sevenzip initialize            
-    }
-}
-
-if {[info proc readFile] eq ""} {
-    proc readFile {filename} {
-        set f [open $filename "r"]
-        try {
-            fconfigure $f -encoding utf-8
-            return [read $f]
-        } finally {
-            close $f
-        }
-    }
-}
-
-if {[info proc writeFile] eq ""} {
-    proc writeFile {filename data} {
-        set f [open $filename "w"]
-        try {
-            fconfigure $f -encoding utf-8
-            puts -nonewline $f $data
-        } finally {
-            close $f
+if {![sevenzip isinitialized]} {
+    catch {
+        if {[info exist env(7ZDLL)]} {
+            sevenzip initialize $env(7ZDLL)
+        } else {
+            sevenzip initialize
         }
     }
 }
@@ -57,6 +30,7 @@ if {[testConstraint vfs] && [testConstraint vfsdebug]} {
     vfs::filesystem internalerror vfserror
     set vfs::debug 1
 }
+
 
 test sevenzipvfs-1.0 {mount params} -constraints vfs -body {
     vfs::sevenzip::Mount

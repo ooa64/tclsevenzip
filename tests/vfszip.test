@@ -212,6 +212,7 @@ test vfsZip-1.13 "globby filenames" -constraints {zipfs zipexe} -setup {
     }
     lsort $result
 } -cleanup {
+    unset result
     vfs::unmount local
 } -result [list "Glob one" "Glob two"]
 
@@ -395,5 +396,5 @@ if {[testConstraint zipfs] && [testConstraint zipexe]} {
     file delete zipnest.zip
     file delete zipglob.zip
 }
-tcltest::cleanupTests
+cleanupTests
 return

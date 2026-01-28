@@ -1,38 +1,12 @@
-if {[lsearch [namespace children] ::tcltest] < 0} {
-    package require tcltest 2
-    namespace import ::tcltest::*
-}
-
+source [file join [file dirname [info script]] allutils.tcl]
 
 package require sevenzip 1
-catch {
-    if {[info exist env(7ZDLL)]} {
-        sevenzip initialize $env(7ZDLL)
-    } else {
-        sevenzip initialize            
-    }
-}
-
-if {[info proc readFile] eq ""} {
-    proc readFile {filename} {
-        set f [open $filename "r"]
-        try {
-            fconfigure $f -encoding utf-8
-            return [read $f]
-        } finally {
-            close $f
-        }
-    }
-}
-
-if {[info proc writeFile] eq ""} {
-    proc writeFile {filename data} {
-        set f [open $filename "w"]
-        try {
-            fconfigure $f -encoding utf-8
-            puts -nonewline $f $data
-        } finally {
-            close $f
+if {![sevenzip isinitialized]} {
+    catch {
+        if {[info exist env(7ZDLL)]} {
+            sevenzip initialize $env(7ZDLL)
+        } else {
+            sevenzip initialize
         }
     }
 }
@@ -40,49 +14,15 @@ if {[info proc writeFile] eq ""} {
 customMatch nocase {string equal -nocase}
 testConstraint have7zip [sevenzip isinitialized]
 testConstraint haveMemchan [expr {![catch {package require tcl::chan::memchan}]}]
-testConstraint encodingOk [expr {"тест" eq "\u0442\u0435\u0441\u0442"}]
 
+set updatableExtensions {}
 if {[testConstraint have7zip]} {
-    foreach e {7z zip rar tar arj} {
-        testConstraint supported.$e [expr {$e in [sevenzip extensions]}]
+    foreach e [sevenzip extensions] {
+        if {[sevenzip updatable $e]} {
+            lappend updatableExtensions $e
+        }
     }
-}
-
-if {[testConstraint leaktest]} {
-    if {[info commands memory] eq ""} {
-        puts stderr "WARNING: leaktest requested but 'memory' command not available"
-    } else {
-        array set ::tcltest::leaks {count 0 bytes 0}
-        proc ::tcltest::getbytes {} {
-            lindex [split [memory info] \n] 3 3
-        }
-        proc ::tcltest::leaktest {script {iterations 3}} {
-            set end [getbytes]
-            for {set i 0} {$i < $iterations} {incr i} {
-                uplevel 1 $script
-                set tmp $end
-                set end [getbytes]
-            }
-            expr {$end - $tmp}
-        }
-        proc test {args} {
-            set leaked [::tcltest::leaktest {uplevel 1 [list ::tcltest::test {*}$args]} 3]
-            if {$leaked != 0} {
-                puts stderr "WARNING: memory leak detected: $leaked bytes"
-                incr ::tcltest::leaks(count)
-                incr ::tcltest::leaks(bytes) $leaked
-            }
-        }
-        proc cleanupTests {args} {
-            if {$::tcltest::leaks(count) != 0} {
-                puts stderr "WARNING: $::tcltest::leaks(count) tests with memory leak detected,\
-                        $::tcltest::leaks(bytes) bytes leaked"
-                memory active sevenzip2-leaks.txt
-            }
-            uplevel 1 [list ::tcltest::cleanupTests {*}$args]
-        }
-        catch {file delete -force sevenzip2-leaks.txt}
-    }
+    unset e
 }
 
 
@@ -122,11 +62,11 @@ test sevenzip2-2.1 {create from invalid channel} -body {
     sevenzip create -inputchannel iii xxx {}
 } -returnCodes 1 -result {can not find channel named "iii"}
 
-test sevenzip2-2.2 {create archive of invalid type} -constraints {have7zip} -body {
+test sevenzip2-2.2 {create archive of invalid type} -constraints have7zip -body {
     sevenzip create -forcetype xxx xxx {}
 } -returnCodes 1 -match nocase -result {Not supported}
 
-test sevenzip2-2.3 {create empty default archive (7z)} -constraints {have7zip} -setup {
+test sevenzip2-2.3 {create empty default archive (7z)} -constraints have7zip -setup {
     set f [file join [temporaryDirectory] sevenzip2.7z]
 } -cleanup {
     catch {file delete -force $f}; unset f
@@ -144,7 +84,7 @@ test sevenzip2-2.3m {create empty default archive (7z)} -constraints {have7zip h
     expr {[tell $c] > 0}
 } -result 1
 
-test sevenzip2-2.4 {create simple file archive (7z)} -constraints {have7zip} -setup {
+test sevenzip2-2.4 {create simple file archive (7z)} -constraints have7zip -setup {
     set f [file join [temporaryDirectory] sevenzip2.7z]
 } -cleanup {
     catch {file delete -force $f}; unset f
@@ -162,40 +102,31 @@ test sevenzip2-2.4m {create simple default archive (7z)} -constraints {have7zip 
     expr {[tell $c] > 0}
 } -result 1
 
-set {sevenzip2-2.5-exts} {}
-test sevenzip2-2.5 {create simple archives of different types} have7zip {
-    set {sevenzip2-2.5-exts} [lmap e [sevenzip extensions] {if {[sevenzip updatable $e]} {set e} else continue}]
-    expr {[llength [set sevenzip2-2.5-exts]] > 0}
-} 1
-
-foreach ext [set {sevenzip2-2.5-exts}] {
+foreach e $updatableExtensions {
     set l [list [file join [testsDirectory] files test.txt]]
 
-    test sevenzip2-2.5.$ext {create simple $ext archive} -setup {
+    test sevenzip2-2.5.$e {create simple $e archive} -constraints have7zip -setup {
         set f [file join [temporaryDirectory] sevenzip2.7z]
     } -cleanup {
         catch {file delete -force $f}; unset f
     } -body {
-        sevenzip create -forcetype $ext $f $l
+        sevenzip create -forcetype $e $f $l
         expr {[file size $f] > 0}
     } -result 1
 
-    test sevenzip2-2.5m.$ext {create simple $ext archive} -constraints {haveMemchan} -setup {
+    test sevenzip2-2.5m.$e {create simple $e archive} -constraints {have7zip haveMemchan} -setup {
         set c [::tcl::chan::memchan]
     } -cleanup {
         close $c; unset c
     } -body {
-        sevenzip create -forcetype $ext -channel $c $l
+        sevenzip create -forcetype $e -channel $c $l
         expr {[tell $c] > 0}
     } -result 1
 
-    unset ext
-    unset l
+    unset e l
 }
 
-unset {sevenzip2-2.5-exts}
-
-test sevenzip2-2.6 {create/list simple archive (7z)} -constraints {have7zip} -setup {
+test sevenzip2-2.6 {create/list simple archive (7z)} -constraints have7zip -setup {
     set l [list [file join [testsDirectory] files test.txt]]
     set f [file join [temporaryDirectory] sevenzip2.7z]
     set z ""
@@ -224,7 +155,7 @@ test sevenzip2-2.6m {create/list simple archive (7z)} -constraints {have7zip hav
     $z list
 } -result [list [file join [testsDirectory] files test.txt]]
 
-test sevenzip2-2.6.1 {create/list archive from channel (7z)} -constraints {have7zip} -setup {
+test sevenzip2-2.6.1 {create/list archive from channel (7z)} -constraints have7zip -setup {
     set l [list [file join [testsDirectory] files test.txt]]
     set f [file join [temporaryDirectory] sevenzip2.7z]
     set i [open [lindex $l 0]]
@@ -240,7 +171,7 @@ test sevenzip2-2.6.1 {create/list archive from channel (7z)} -constraints {have7
     $z list
 } -result [list [file join [testsDirectory] files test.txt]]
 
-test sevenzip2-2.7 {create/extract simple archive (7z)} -constraints {have7zip} -setup {
+test sevenzip2-2.7 {create/extract simple archive (7z)} -constraints have7zip -setup {
     set l [list [file join [testsDirectory] files test.txt]]
     set f [file join [temporaryDirectory] sevenzip2.7z]
     set e [file join [temporaryDirectory] sevenzip2.txt]
@@ -276,7 +207,7 @@ test sevenzip2-2.7m {create/extract simple archive (7z)} -constraints {have7zip 
     read $o
 } -result {test}
 
-test sevenzip2-2.7.1 {create/extract archive from channel (7z)} -constraints {have7zip} -setup {
+test sevenzip2-2.7.1 {create/extract archive from channel (7z)} -constraints have7zip -setup {
     set l [list [file join [testsDirectory] files test.txt]]
     set f [file join [temporaryDirectory] sevenzip2.7z]
     set e [file join [temporaryDirectory] sevenzip2.txt]
@@ -295,7 +226,7 @@ test sevenzip2-2.7.1 {create/extract archive from channel (7z)} -constraints {ha
     readFile $e
 } -result {test}
 
-test sevenzip2-2.8 {create/extract encrypted archive (7z)} -constraints {have7zip} -setup {
+test sevenzip2-2.8 {create/extract encrypted archive (7z)} -constraints have7zip -setup {
     set l [list [file join [testsDirectory] files test.txt]]
     set f [file join [temporaryDirectory] sevenzip2.7z]
     set o [file join [temporaryDirectory] sevenzip2.txt]
@@ -335,7 +266,7 @@ test sevenzip2-2.8m {create/extract encrypted archive (7z)} -constraints {have7z
     read $o
 } -result {test}
 
-test sevenzip2-2.8.1 {create/extract encrypted item no password (7z)} -constraints {have7zip} -setup {
+test sevenzip2-2.8.1 {create/extract encrypted item no password (7z)} -constraints have7zip -setup {
     set l [list [file join [testsDirectory] files test.txt]]
     set f [file join [temporaryDirectory] sevenzip2.7z]
     set o [file join [temporaryDirectory] sevenzip2.txt]
@@ -368,7 +299,7 @@ test sevenzip2-2.8.1m {create/extract encrypted archive no password (7z)} -const
     $z extract -channel $o [lindex $l 0]
 } -result {Need password} -match nocase -returnCodes 1
 
-test sevenzip2-2.8.2 {create/extract encrypted item invalid password (7z)} -constraints {have7zip} -setup {
+test sevenzip2-2.8.2 {create/extract encrypted item invalid password (7z)} -constraints have7zip -setup {
     set l [list [file join [testsDirectory] files test.txt]]
     set f [file join [temporaryDirectory] sevenzip2.7z]
     set o [file join [temporaryDirectory] sevenzip2.txt]
@@ -401,7 +332,7 @@ test sevenzip2-2.8.2m {create/extract encrypted archive no password (7z)} -const
     $z extract -channel $o [lindex $l 0]
 } -result {*Unspecified error} -match glob -returnCodes 1
 
-test sevenzip2-2.9 {create complex archive (7z)} -constraints {have7zip} -setup {
+test sevenzip2-2.9 {create complex archive (7z)} -constraints have7zip -setup {
     set f [file join [temporaryDirectory] sevenzip2.7z]
     set d "sevenzip2"
     set z ""
@@ -490,7 +421,7 @@ foreach {n p v r} {
     2 x 9 LZMA*
     3 x 0 COPY
 } { 
-    test sevenzip2-4.0.$n {create simple archive with string property (7z)} -constraints {have7zip} -setup {
+    test sevenzip2-4.0.$n {create simple archive with string property (7z)} -constraints have7zip -setup {
         set l [list [file join [testsDirectory] files test.txt]]
         set f [file join [temporaryDirectory] sevenzip2.7z]
         set z ""
@@ -510,7 +441,7 @@ foreach {n p v r} {
     0 s on 1
     1 s off 0
 } { 
-    test sevenzip2-4.1.$n {create simple archive with bool property (7z)} -constraints {have7zip} -setup {
+    test sevenzip2-4.1.$n {create simple archive with bool property (7z)} -constraints have7zip -setup {
         set f [file join [temporaryDirectory] sevenzip2.7z]
         set i1 [file join [temporaryDirectory] sevenzip2-1.txt]
         set i2 [file join [temporaryDirectory] sevenzip2-2.txt]
@@ -532,6 +463,6 @@ foreach {n p v r} {
 }
 
 
+unset updatableExtensions
 cleanupTests
 return
-

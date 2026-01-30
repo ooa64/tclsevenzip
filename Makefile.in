@@ -174,9 +174,12 @@ COMPILE		= $(CC) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) \
 			  $(CFLAGS_DEFAULT) $(CFLAGS_WARNING) $(CFLAGS_DEBUGLOG) $(SHLIB_CFLAGS) $(CFLAGS)
 
 GDB		= gdb
+LLDB	= lldb
 VALGRIND	= valgrind
 VALGRINDARGS	= --tool=memcheck --num-callers=8 --leak-resolution=high \
 		  --leak-check=yes --show-reachable=yes -v
+LEAKS	= leaks
+LEAKSARGS	=  -list -quiet -atExit --
 
 .SUFFIXES: .c .cpp .$(OBJEXT)
 
@@ -263,12 +266,26 @@ gdb-test: binaries libraries pkgIndex.tcl
 	    --args $(TCLSH_PROG) `@CYGPATH@ $(srcdir)/tests/all.tcl` \
 	    $(TESTFLAGS) -singleproc 1
 
+lldb-test: binaries libraries pkgIndex.tcl
+	cp library/sevenzipvfs.tcl ./
+	$(LLDB) \
+	    -O "env TCLLIBPATH=." \
+	    -O "env DYLD_LIBRARY_PATH=$(EXTRA_PATH)" \
+	    -- $(TCLSH_PROG) `echo $(srcdir)/tests/all.tcl` \
+	    $(TESTFLAGS) -singleproc 1
+
 valgrind: binaries libraries
 	$(TCLSH_ENV) $(PKG_ENV) $(VALGRIND) $(VALGRINDARGS) $(TCLSH_PROG) \
 	    `@CYGPATH@ $(srcdir)/tests/all.tcl` $(TESTFLAGS)
 
 valgrindshell: binaries libraries
 	$(TCLSH_ENV) $(PKG_ENV) $(VALGRIND) $(VALGRINDARGS) $(TCLSH_PROG) $(SCRIPT)
+
+# NOTE: environment variables does not work
+leaks: binaries libraries
+	$(TCLSH_ENV) $(PKG_ENV) $(LEAKS) $(LEAKSARGS) $(TCLSH_PROG) \
+	    `@CYGPATH@ $(srcdir)/tests/all.tcl` $(TESTFLAGS)
+
 
 depend:
 

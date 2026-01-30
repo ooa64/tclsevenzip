@@ -209,6 +209,7 @@ test vfsZip-1.13 "globby filenames" -constraints {zipfs zipexe} -setup {
     foreach file [glob -type f -directory local/zipglob.test *] {
         set f [open $file r]
         lappend result [string trim [read $f]]
+        close $f
     }
     lsort $result
 } -cleanup {

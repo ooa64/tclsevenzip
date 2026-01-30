@@ -64,7 +64,9 @@ if {[info exists ::tcltest::_leaks]} {
         }
         proc cleanupTests {args} {
             if {$::tcltest::_leaks(count) != 0} {
-                # memory active [string cat [file tail [info script]] .leaks.lst]
+                if {[testConstraint leakTestDump]} {
+                    memory active [string cat [file tail [info script]] .leaks.lst]
+                }
                 puts stderr "WARNING: $::tcltest::_leaks(count) tests with memory leak detected,\
                         $::tcltest::_leaks(bytes) bytes leaked"
                 array set ::tcltest::_leaks {count 0 bytes 0}

@@ -705,14 +705,20 @@ test sevenzip-5.10 {extract data with item password using archive password} -con
 test sevenzip-5.10.1 {extract data with item password using invalid archive password} -constraints have7zip -setup {
     set cmd [sevenzip open -p TESTX [file join [testsDirectory] files testPWD1.7z]]
     set out [file join [temporaryDirectory] test.txt]
-    writeFile $out "TEST"
 } -cleanup {
     $cmd close; unset cmd
-    deleteFile $out; unset out
 } -body {
     $cmd extract $out test.txt
-    readFile $out
 } -result {*Unspecified error} -match glob -returnCodes 1
+
+test sevenzip-5.10.2 {extract data with item password using invalid destination} -constraints have7zip -setup {
+    set cmd [sevenzip open -p TEST [file join [testsDirectory] files testPWD1.7z]]
+    set out [file join [temporaryDirectory] notexistent test.txt]
+} -cleanup {
+    $cmd close; unset cmd
+} -body {
+    $cmd extract $out test.txt
+} -result {couldn't open file "*/notexistent/test.txt": no such file or directory} -match glob -returnCodes 1
 
 test sevenzip-5.11 {extract data with item password} -constraints have7zip -setup {
     set cmd [sevenzip open [file join [testsDirectory] files testPWD1.7z]]

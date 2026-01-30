@@ -54,11 +54,11 @@ test sevenzip2-1.6 {create syntax} -body {
     sevenzip create -password xxx {}
 } -returnCodes 1 -result {"-password" option must be followed by password}
 
-test sevenzip2-2.0 {create to invalid channel} -body {
+test sevenzip2-2.0 {create to invalid channel} -constraints have7zip -body {
     sevenzip create -channel xxx {}
 } -returnCodes 1 -result {can not find channel named "xxx"}
 
-test sevenzip2-2.1 {create from invalid channel} -body {
+test sevenzip2-2.1 {create from invalid channel} -constraints have7zip -body {
     sevenzip create -inputchannel iii xxx {}
 } -returnCodes 1 -result {can not find channel named "iii"}
 

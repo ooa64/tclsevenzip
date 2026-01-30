@@ -380,7 +380,7 @@ test sevenzip-4.10 {detailed list} -constraints have7zip -setup {
     $cmd close; unset cmd
 } -body {
     $cmd list -info
-} -result {{path test.txt size 4 packsize 9 mtime 1759752741 attrib 33 crc -662733300 encrypted 0 method LZMA:12 block 0 isdir 0}}
+} -result {{path test.txt size 4 packsize 9 mtime 1759752741 attrib 33 crc 3632233996 encrypted 0 method LZMA:12 block 0 isdir 0}}
 
 test sevenzip-4.10.1 {detailed list (tar), check for duplicated isdir} -constraints have7zip -setup {
     set cmd [sevenzip open [file join [testsDirectory] files test.tar]]
@@ -463,12 +463,12 @@ path testDIRS/test3/test31 size 0 packsize 0 mtime 1759410880 attrib 16 encrypte
 path testDIRS/test3/test32 size 0 packsize 0 mtime 1759411673 attrib 16 encrypted 0 isdir 1
 path testDIRS/test3/test33 size 0 packsize 0 mtime 1759410923 attrib 16 encrypted 0 isdir 1
 path testDIRS/test3/test33/test331 size 0 packsize 0 mtime 1759410923 attrib 16 encrypted 0 isdir 1
-path testDIRS/test2/test21.txt size 6 packsize 26 mtime 1759410852 attrib 32 crc -427848196 encrypted 0 method LZMA:12 block 0 isdir 0
+path testDIRS/test2/test21.txt size 6 packsize 26 mtime 1759410852 attrib 32 crc 3867119100 encrypted 0 method LZMA:12 block 0 isdir 0
 path testDIRS/test2/test22.txt size 6 mtime 1759410861 attrib 32 crc 2138496070 encrypted 0 method LZMA:12 block 0 isdir 0
 path testDIRS/test2/test23.txt size 6 mtime 1759411705 attrib 32 crc 141683920 encrypted 0 method LZMA:12 block 0 isdir 0
 path testDIRS/test3/test32/test321.txt size 7 mtime 1759411673 attrib 32 crc 501094393 encrypted 0 method LZMA:12 block 0 isdir 0
-path testDIRS/test4.txt size 5 mtime 1759410820 attrib 32 crc -86497171 encrypted 0 method LZMA:12 block 0 isdir 0
-path testDIRS/test5.txt size 5 mtime 1759411684 attrib 32 crc -1914758917 encrypted 0 method LZMA:12 block 0 isdir 0
+path testDIRS/test4.txt size 5 mtime 1759410820 attrib 32 crc 4208470125 encrypted 0 method LZMA:12 block 0 isdir 0
+path testDIRS/test5.txt size 5 mtime 1759411684 attrib 32 crc 2380208379 encrypted 0 method LZMA:12 block 0 isdir 0
 path testDIRS/test6.txt size 5 mtime 1759411690 attrib 32 crc 349587777 encrypted 0 method LZMA:12 block 0 isdir 0}
 
 test sevenzip-4.16 {intl list} -constraints {have7zip encodingOk} -setup {
@@ -505,7 +505,7 @@ test sevenzip-4.19 {encrypted archive list} -constraints have7zip -setup {
     $cmd close; unset cmd
 } -body {
     $cmd list -info
-} -result {{path test.txt size 4 packsize 16 mtime 1759752741 attrib 33 crc -662733300 encrypted 1 method {LZMA:12 7zAES:19} block 0 isdir 0}}
+} -result {{path test.txt size 4 packsize 16 mtime 1759752741 attrib 33 crc 3632233996 encrypted 1 method {LZMA:12 7zAES:19} block 0 isdir 0}}
 
 test sevenzip-4.20 {encrypted item list} -constraints have7zip -setup {
     set cmd [sevenzip open [file join [testsDirectory] files testPWD1.7z]]
@@ -513,7 +513,7 @@ test sevenzip-4.20 {encrypted item list} -constraints have7zip -setup {
     $cmd close; unset cmd
 } -body {
     $cmd list -info
-} -result {{path test.txt size 4 packsize 16 mtime 1759752741 attrib 33 crc -662733300 encrypted 1 method {LZMA:12 7zAES:19} block 0 isdir 0}}
+} -result {{path test.txt size 4 packsize 16 mtime 1759752741 attrib 33 crc 3632233996 encrypted 1 method {LZMA:12 7zAES:19} block 0 isdir 0}}
 
 test sevenzip-5.0.1 {extract syntax} -constraints have7zip -setup {
     set cmd [sevenzip open [file join [testsDirectory] files test.7z]]

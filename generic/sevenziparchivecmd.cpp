@@ -351,10 +351,10 @@ int SevenzipArchiveCmd::Info(Tcl_Obj *info) {
         PROPID propId;
         VARTYPE propType;
         if (archive.getPropertyInfo(i, propId, propType) == S_OK) {
-            const wchar_t* stringValue;
-            bool boolValue;
-            UInt32 uint32Value;
-            UInt64 uint64Value;
+            const wchar_t* stringValue = NULL;
+            bool boolValue = false;
+            UInt32 uint32Value = 0;
+            UInt64 uint64Value = 0;
             Tcl_Obj *value = NULL;
             switch (propType) {
             case VT_BSTR:
@@ -372,7 +372,7 @@ int SevenzipArchiveCmd::Info(Tcl_Obj *info) {
             case VT_UI2:
             case VT_UI4:
                 if (archive.getIntProperty(propId, uint32Value) == S_OK)
-                    value = Tcl_NewIntObj(uint32Value);
+                    value = Tcl_NewWideIntObj(uint32Value);
                 break;
             case VT_I8:
             case VT_UI8:
@@ -381,7 +381,7 @@ int SevenzipArchiveCmd::Info(Tcl_Obj *info) {
                 break;
             case VT_FILETIME:
                 if (archive.getTimeProperty(propId, uint32Value) == S_OK)
-                    value = Tcl_NewIntObj(uint32Value);
+                    value = Tcl_NewWideIntObj(uint32Value);
                 break;
             default:
                 DEBUGLOG(this << " SevenzipArchiveCmd unknown prop id " << propId << " type " << propType);
@@ -398,43 +398,6 @@ int SevenzipArchiveCmd::Info(Tcl_Obj *info) {
             }
         }
     }
-    // NOTE: compatibility with older versions. dont think this is needed anymore
-    // {
-    //     // append missing physize property
-    //     UInt64 uint64Value;
-    //     if (archive.getWideProperty(kpidPhySize, uint64Value) == S_OK) {
-    //         Tcl_ListObjAppendElement(NULL, info, Tcl_NewStringObj("physize", -1));
-    //         Tcl_ListObjAppendElement(NULL, info, Tcl_NewWideIntObj(uint64Value));
-    //     }
-    // }
-    //
-    // NOTE: above code may not list all properties (physize,errorflags,...?) or have another type (numblocks)
-    // NOTE: There is an alternative way to get all properties
-    // 
-    // for (PROPID propId = 0; propId < sizeof(SevenzipProperties)/sizeof(SevenzipProperties[0]); propId++) {
-    //     const wchar_t* stringValue;
-    //     bool boolValue;
-    //     UInt32 uint32Value;
-    //     UInt64 uint64Value;
-    //     if (archive.getStringProperty(propId, stringValue) == S_OK) {
-    //         Tcl_ListObjAppendElement(NULL, info, Tcl_NewStringObj(SevenzipProperties[propId], -1));
-    //         Tcl_ListObjAppendElement(NULL, info, Tcl_NewStringObj(sevenzip::toBytes(stringValue), -1));
-    //     } else if (archive.getBoolProperty(propId, boolValue) == S_OK) {
-    //         Tcl_ListObjAppendElement(NULL, info, Tcl_NewStringObj(SevenzipProperties[propId], -1));
-    //         Tcl_ListObjAppendElement(NULL, info, Tcl_NewBooleanObj(boolValue));
-    //     } else if (archive.getIntProperty(propId, uint32Value) == S_OK) {
-    //         Tcl_ListObjAppendElement(NULL, info, Tcl_NewStringObj(SevenzipProperties[propId], -1));
-    //         Tcl_ListObjAppendElement(NULL, info, Tcl_NewIntObj(uint32Value));
-    //     } else if (archive.getWideProperty(propId, uint64Value) == S_OK) {
-    //         Tcl_ListObjAppendElement(NULL, info, Tcl_NewStringObj(SevenzipProperties[propId], -1));
-    //         Tcl_ListObjAppendElement(NULL, info, Tcl_NewWideIntObj(uint64Value));
-    //        else if (archive.getTimeProperty(propId, uint32Value) == S_OK) {
-    //         Tcl_ListObjAppendElement(NULL, info, Tcl_NewStringObj(SevenzipProperties[propId], -1));
-    //            Tcl_ListObjAppendElement(NULL, info, Tcl_NewIntObj(uint32Value));
-    //     } else {
-    //         DEBUGLOG("SevenzipArchiveCmd unhandled prop " << SevenzipProperties[propId]);
-    //     }
-    // }
     return TCL_OK;
 }
 
@@ -470,10 +433,10 @@ int SevenzipArchiveCmd::List(Tcl_Obj *list, Tcl_Obj *pattern, char type, int fla
                 PROPID propId;
                 VARTYPE propType;
                 if (archive.getItemPropertyInfo(j, propId, propType) == S_OK) {
-                    const wchar_t* stringValue;
-                    bool boolValue;
-                    UInt32 uint32Value;
-                    UInt64 uint64Value;
+                    const wchar_t* stringValue = NULL;
+                    bool boolValue = false;
+                    UInt32 uint32Value = 0;
+                    UInt64 uint64Value = 0;
                     Tcl_Obj *value = NULL;
                     switch (propType) {
                     case VT_BSTR:
@@ -498,8 +461,8 @@ int SevenzipArchiveCmd::List(Tcl_Obj *list, Tcl_Obj *pattern, char type, int fla
                     case VT_UI2:
                     case VT_UI4:
                         if (archive.getIntItemProperty(i, propId, uint32Value) == S_OK)
-                            value = Tcl_NewIntObj(uint32Value);
-                        // NOTE: see note below about some 64bit values returned as VT_UI4
+                            value = Tcl_NewWideIntObj(uint32Value);
+                        // NOTE: see note below about some 64bit values
                         else if (archive.getWideItemProperty(i, propId, uint64Value) == S_OK)
                             value = Tcl_NewWideIntObj(uint64Value);
                         break;
@@ -509,7 +472,7 @@ int SevenzipArchiveCmd::List(Tcl_Obj *list, Tcl_Obj *pattern, char type, int fla
                             value = Tcl_NewWideIntObj(uint64Value);
                         // NOTE: some 64bit values (like arj size) are returned as VT_UI4
                         else if (archive.getIntItemProperty(i, propId, uint32Value) == S_OK)
-                            value = Tcl_NewIntObj(uint32Value);
+                            value = Tcl_NewWideIntObj(uint32Value);
                         break;
                     case VT_FILETIME:
                         if (archive.getTimeItemProperty(i, propId, uint32Value) == S_OK)

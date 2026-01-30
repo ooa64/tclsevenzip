@@ -1014,6 +1014,7 @@ foreach {n x} {0 .7z 1 .zip 2 .rar 3 .tar 4 .arj 10 MAC.7z 11 MAC.zip 12 MAC.rar
         $cmd close
         if {$::tcl_platform(platform) eq "windows"} {
             set arcstat(posixattrib) 0
+            set arcstat(attrib) [expr {$arcstat(attrib) & 0x7FFF}]
         } else {
             set arcstat(attrib) 0
         }

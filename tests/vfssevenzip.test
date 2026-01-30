@@ -206,6 +206,17 @@ foreach {n a g r} {
     unset n g r
 }
 
+test sevenzipvfs-1.7 {mount/stat simple file} -constraints {have7zip vfs} -setup {
+    set mnt [vfs::sevenzip::Mount [file join [testsDirectory] files test.7z] mnt]
+    array set stat {}
+} -cleanup {
+    unset stat
+    vfs::sevenzip::Unmount $mnt mnt; unset mnt
+} -body {
+    file stat mnt/test.txt stat
+    list $stat(size) $stat(mtime) $stat(atime) $stat(ctime) $stat(mode) 
+} -result {4 1759752741 1759752741 1759752741 33133}
+
 test sevenzipvfs-2.1.invalidTimeBug {invalidTimeBug} -constraints {have7zip vfs invalidTimeBug} -setup {
     set mnt [vfs::sevenzip::Mount $invalidTimeBugFile mnt]
 } -cleanup {

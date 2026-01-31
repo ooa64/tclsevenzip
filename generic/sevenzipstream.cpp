@@ -540,13 +540,8 @@ int lastError(Tcl_Interp *interp, HRESULT hr) {
 }
 
 static HRESULT getResult(bool success) {
-#if defined(_WIN32) && TCL_MAJOR_VERSION >= 9
-    // NOTE: on Windows with Tcl 9+ errno does not match Tcl_GetErrno()
-    if (!success && errno != Tcl_GetErrno()) {
-        DEBUGLOG("getResult mismatch: errno " << errno << " Tcl_GetErrno " << Tcl_GetErrno());
+    if (!success && Tcl_GetErrno() != 0)
         errno = Tcl_GetErrno();
-    }
-#endif
     return sevenzip::getResult(success);
 }
 

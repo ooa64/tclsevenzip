@@ -8,8 +8,8 @@ package ifneeded @PACKAGE_NAME@ @PACKAGE_VERSION@ [list ::apply {{dir} {
         load [file join $dir @PKG_LIB_FILE8@] [string totitle @PACKAGE_NAME@]
     }
     if {![sevenzip isinitialized]} {
-        if {[catch {sevenzip initialize [file join $dir 7z]}]} {
-            catch {sevenzip initialize [file join [file dirname [info nameofexe]] 7z]}
+        if {[catch {sevenzip initialize [file join [file dirname [info nameofexe]] 7z]}]} {
+            catch {sevenzip initialize [file join $dir 7z]}
         }
     }
 }} $dir]

@@ -187,12 +187,12 @@ test sevenzip2-2.6m {create/list simple archive (7z)} -constraints {have7zip hav
 } -result [list [file join [testsDirectory] files test.txt]]
 
 test sevenzip2-2.6.1 {create/list archive from channel (7z)} -constraints have7zip -setup {
-    set l [list [file join [testsDirectory] files test.txt]]
+    set l [list test-inchannel.txt]
     set f [file join [temporaryDirectory] sevenzip2.7z]
-    set i [open [lindex $l 0]]
+    set i [open [file join [testsDirectory] files test.txt]]
     set z ""
 } -cleanup {
-    catch {rename $z ""}; unset z
+    catch {rename $z ""}; unset -nocomplain z
     catch {file delete -force $f}; unset f
     close $i; unset i
     unset l
@@ -200,7 +200,7 @@ test sevenzip2-2.6.1 {create/list archive from channel (7z)} -constraints have7z
     sevenzip create -forcetype 7z -inputchannel $i $f $l
     set z [sevenzip open -forcetype 7z $f]
     $z list
-} -result [list [file join [testsDirectory] files test.txt]]
+} -result {test-inchannel.txt}
 
 test sevenzip2-2.7 {create/extract simple archive (7z)} -constraints have7zip -setup {
     set l [list [file join [testsDirectory] files test.txt]]
@@ -208,7 +208,7 @@ test sevenzip2-2.7 {create/extract simple archive (7z)} -constraints have7zip -s
     set e [file join [temporaryDirectory] sevenzip2.txt]
     set z ""
 } -cleanup {
-    catch {rename $z ""}; unset z
+    catch {rename $z ""}; unset -nocomplain z
     catch {file delete -force $e}; unset e
     catch {file delete -force $f}; unset f
     unset l

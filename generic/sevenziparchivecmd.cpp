@@ -556,6 +556,9 @@ int SevenzipArchiveCmd::Extract(Tcl_Obj *source, Tcl_Obj *destination, Tcl_Obj *
         if (strcmp(path, Tcl_GetString(source)) == 0) {
             SevenzipOutStream stream(tclInterp);
 
+            // NOTE: use single thread to avoid Tcl threading issues    
+            archive.addBoolOption(L"mt", false);
+
             HRESULT hr = usechannel
                 ? stream.AttachOpenChannel(destination)
                 : stream.AttachFileChannel(destination);

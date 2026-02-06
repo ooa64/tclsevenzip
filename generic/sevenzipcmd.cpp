@@ -384,18 +384,20 @@ int SevenzipCmd::CreateArchive(Tcl_Obj *pathnames, Tcl_Obj *destination, Tcl_Obj
                 return TCL_ERROR;
             int intValue;
             if (Tcl_GetIntFromObj(tclInterp, value, &intValue) == TCL_OK)
-                hr = archive.setIntProperty(
+                archive.addIntOption(
                         sevenzip::fromBytes(Tcl_GetString(key)), intValue);
             else if (Tcl_GetBooleanFromObj(tclInterp, value, &intValue) == TCL_OK)
-                hr = archive.setBoolProperty(
+                archive.addBoolOption(
                         sevenzip::fromBytes(Tcl_GetString(key)), intValue);
             else
-                hr = archive.setStringProperty(
+                archive.addStringOption(
                         sevenzip::fromBytes(Tcl_GetString(key)),
                         sevenzip::fromBytes(buffer, sizeof(buffer)/sizeof(wchar_t), Tcl_GetString(value)));
             Tcl_ResetResult(tclInterp);
         }
     }
+    // NOTE: use single thread to avoid Tcl threading issues    
+    archive.addBoolOption(L"mt", false);
     if (hr == S_OK) {
         Tcl_Size length;
         if (Tcl_ListObjLength(tclInterp, pathnames, &length) != TCL_OK)

@@ -192,7 +192,8 @@ UInt64 SevenzipInStream::GetSize(Tcl_Obj *pathname) {
     auto *stat = getStatBuf(pathname);
     if (stat)
         return Tcl_GetSizeFromStat(stat);
-    return 0;
+    // NOTE: on error, return size 1 to continue processing
+    return 1;
 }
 
 UInt32 SevenzipInStream::GetMode(Tcl_Obj *pathname) {

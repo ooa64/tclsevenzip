@@ -568,10 +568,6 @@ static Tcl_Channel getOpenChannel(Tcl_Interp *tclInterp, Tcl_Obj *channel, bool 
 static Tcl_Channel getFileChannel(Tcl_Interp *tclInterp, Tcl_Obj *filename, bool writable) {
     Tcl_IncrRefCount(filename);
     Tcl_Channel tclChannel = Tcl_FSOpenFileChannel(tclInterp, filename, writable ? "wb" : "rb", 0644);
-    if (tclChannel == NULL) {
-        Tcl_SetObjResult(tclInterp, Tcl_ObjPrintf("couldn't open file \"%s\": %s",
-                Tcl_GetString(filename), Tcl_PosixError(tclInterp)));
-    }
     Tcl_DecrRefCount(filename);
     return tclChannel;
 }

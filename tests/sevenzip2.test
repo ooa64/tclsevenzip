@@ -54,11 +54,20 @@ test sevenzip2-1.6 {create syntax} -body {
     sevenzip create -password xxx {}
 } -returnCodes 1 -result {"-password" option must be followed by password}
 
-test sevenzip2-2.0 {create to invalid channel} -constraints have7zip -body {
+test sevenzip2-2.0 {create from file not found} -constraints have7zip -setup {
+    set f [file join [temporaryDirectory] sevenzip2.7z]
+} -cleanup {
+    catch {file delete -force $f}; unset f
+} -body {
+    sevenzip create -forcetype 7z $f [list [file join [testsDirectory] files notexistent]]
+    expr {[file size $f] > 0}
+} -returnCodes 1 -result {couldn't open "*/tests/files/notexistent": no such file or directory} -match glob
+
+test sevenzip2-2.1.0 {create to invalid channel} -constraints have7zip -body {
     sevenzip create -channel xxx {}
 } -returnCodes 1 -result {can not find channel named "xxx"}
 
-test sevenzip2-2.1 {create from invalid channel} -constraints have7zip -body {
+test sevenzip2-2.1.1 {create from invalid channel} -constraints have7zip -body {
     sevenzip create -inputchannel iii xxx {}
 } -returnCodes 1 -result {can not find channel named "iii"}
 

@@ -147,7 +147,7 @@ test sevenzip-2.1.8 {updatable} -constraints have7zip -body {
 
 test sevenzip-2.2.1 {open notexistent} -constraints have7zip -body {
     sevenzip open [file join [testsDirectory] files notexistent]
-} -returnCodes 1 -result {couldn't open file "*/files/notexistent": no such file or directory} -match glob
+} -returnCodes 1 -result {couldn't open "*/files/notexistent": no such file or directory} -match glob
 
 test sevenzip-2.2.2.1 {open unknown format (default)} -constraints have7zip -body {
     sevenzip open [file join [testsDirectory] files test.txt]
@@ -563,7 +563,7 @@ test sevenzip-5.2 {extract invalid destination} -constraints have7zip -setup {
     $cmd close; unset cmd
 } -body {
     $cmd extract $out test.txt
-} -returnCodes 1 -result {couldn't open file "*/notexistent/test.txt": no such file or directory} -match glob
+} -returnCodes 1 -result {couldn't open "*/notexistent/test.txt": no such file or directory} -match glob
 
 test sevenzip-5.3 {extract ok} -constraints have7zip -setup {
     set cmd [sevenzip open [file join [testsDirectory] files test.7z]]
@@ -718,7 +718,7 @@ test sevenzip-5.10.2 {extract data with item password using invalid destination}
     $cmd close; unset cmd
 } -body {
     $cmd extract $out test.txt
-} -result {couldn't open file "*/notexistent/test.txt": no such file or directory} -match glob -returnCodes 1
+} -result {couldn't open "*/notexistent/test.txt": no such file or directory} -match glob -returnCodes 1
 
 test sevenzip-5.11 {extract data with item password} -constraints have7zip -setup {
     set cmd [sevenzip open [file join [testsDirectory] files testPWD1.7z]]

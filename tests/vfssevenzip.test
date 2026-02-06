@@ -39,7 +39,7 @@ test sevenzipvfs-1.0 {mount params} -constraints vfs -body {
 test sevenzipvfs-1.1 {mount non-existent file} -constraints {have7zip vfs} -cleanup {
 } -body {
     vfs::sevenzip::Mount [file join [testsDirectory] files notexistent] mnt
-} -returnCodes 1 -result "couldn't open file \"[file join [testsDirectory] files notexistent]\": no such file or directory"
+} -returnCodes 1 -result "couldn't open \"[file join [testsDirectory] files notexistent]\": no such file or directory"
 
 test sevenzipvfs-1.2 {mount unknown file} -constraints {have7zip vfs} -cleanup {
 } -body {

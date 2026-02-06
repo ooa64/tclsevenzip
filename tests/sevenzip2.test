@@ -111,8 +111,19 @@ test sevenzip2-2.4m {create simple default archive (7z)} -constraints {have7zip 
     expr {[tell $c] > 0}
 } -result 1
 
+test sevenzip2-2.4.1 {create simple twofile archive (7z)} -constraints have7zip -setup {
+    set f [file join [temporaryDirectory] sevenzip2.7z]
+} -cleanup {
+    catch {file delete -force $f}; unset f
+} -body {
+    sevenzip create -forcetype 7z $f [list [file join [testsDirectory] files test.txt] \
+            [file join [testsDirectory] sevenzip2.test]]
+    expr {[file size $f] > 0}
+} -result 1
+
 foreach e $updatableExtensions {
     set l [list [file join [testsDirectory] files test.txt]]
+    set l2 [list [file join [testsDirectory] files test.txt] [file join [testsDirectory] sevenzip2.test]]
 
     test sevenzip2-2.5.$e {create simple $e archive} -constraints have7zip -setup {
         set f [file join [temporaryDirectory] sevenzip2.7z]
@@ -132,7 +143,18 @@ foreach e $updatableExtensions {
         expr {[tell $c] > 0}
     } -result 1
 
-    unset e l
+    if {$e in {7z tar wim zip}} {
+        test sevenzip2-2.5.$e.1 {create simple twofile $e archive} -constraints have7zip -setup {
+            set f [file join [temporaryDirectory] sevenzip2.$e]
+        } -cleanup {
+            catch {file delete -force $f}; unset f
+        } -body {
+            sevenzip create -forcetype $e $f $l2
+            expr {[file size $f] > 0}
+        } -result 1
+    }
+
+    unset e l l2
 }
 
 test sevenzip2-2.6 {create/list simple archive (7z)} -constraints have7zip -setup {
@@ -140,7 +162,7 @@ test sevenzip2-2.6 {create/list simple archive (7z)} -constraints have7zip -setu
     set f [file join [temporaryDirectory] sevenzip2.7z]
     set z ""
 } -cleanup {
-    catch {rename $z ""}; unset z
+    catch {rename $z ""}; unset -nocomplain z
     catch {file delete -force $f}; unset f
     unset l
 } -body {

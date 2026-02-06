@@ -176,7 +176,7 @@ test sevenzip2-2.6m {create/list simple archive (7z)} -constraints {have7zip hav
     set c [::tcl::chan::memchan]
     set z ""
 } -cleanup {
-    catch {rename $z ""}; unset z
+    catch {rename $z ""}; unset -nocomplain z
     close $c; unset c
     unset l
 } -body {
@@ -225,7 +225,7 @@ test sevenzip2-2.7m {create/extract simple archive (7z)} -constraints {have7zip 
     set o [::tcl::chan::memchan]
     set z ""
 } -cleanup {
-    catch {rename $z ""}; unset z
+    catch {rename $z ""}; unset -nocomplain z
     close $c; unset c
     close $o; unset o
     unset l
@@ -245,7 +245,7 @@ test sevenzip2-2.7.1 {create/extract archive from channel (7z)} -constraints hav
     set i [open [lindex $l 0]]
     set z ""
 } -cleanup {
-    catch {rename $z ""}; unset z
+    catch {rename $z ""}; unset -nocomplain z
     catch {file delete -force $e}; unset e
     catch {file delete -force $f}; unset f
     close $i; unset i
@@ -263,7 +263,7 @@ test sevenzip2-2.8 {create/extract encrypted archive (7z)} -constraints have7zip
     set o [file join [temporaryDirectory] sevenzip2.txt]
     set z ""
 } -cleanup {
-    catch {rename $z ""}; unset z
+    catch {rename $z ""}; unset -nocomplain z
     catch {file delete -force $f}; unset f
     catch {file delete -force $o}; unset o
     unset l
@@ -284,7 +284,7 @@ test sevenzip2-2.8m {create/extract encrypted archive (7z)} -constraints {have7z
 #     puts MEMCHAN_O:[fconfigure $o]
     set z ""
 } -cleanup {
-    catch {rename $z ""}; unset z
+    catch {rename $z ""}; unset -nocomplain z
     close $c; unset c
     close $o; unset o
     unset l
@@ -303,7 +303,7 @@ test sevenzip2-2.8.1 {create/extract encrypted item no password (7z)} -constrain
     set o [file join [temporaryDirectory] sevenzip2.txt]
     set z ""
 } -cleanup {
-    catch {rename $z ""}; unset z
+    catch {rename $z ""}; unset -nocomplain z
     catch {file delete -force $f}; unset f
     catch {file delete -force $o}; unset o
     unset l
@@ -319,7 +319,7 @@ test sevenzip2-2.8.1m {create/extract encrypted archive no password (7z)} -const
     set o [::tcl::chan::memchan]
     set z ""
 } -cleanup {
-    catch {rename $z ""}; unset z
+    catch {rename $z ""}; unset -nocomplain z
     close $c; unset c
     close $o; unset o
     unset l
@@ -336,7 +336,7 @@ test sevenzip2-2.8.2 {create/extract encrypted item invalid password (7z)} -cons
     set o [file join [temporaryDirectory] sevenzip2.txt]
     set z ""
 } -cleanup {
-    catch {rename $z ""}; unset z
+    catch {rename $z ""}; unset -nocomplain z
     catch {file delete -force $f}; unset f
     catch {file delete -force $o}; unset o
     unset l
@@ -352,7 +352,7 @@ test sevenzip2-2.8.2m {create/extract encrypted archive no password (7z)} -const
     set o [::tcl::chan::memchan]
     set z ""
 } -cleanup {
-    catch {rename $z ""}; unset z
+    catch {rename $z ""}; unset -nocomplain z
     close $c; unset c
     close $o; unset o
     unset l
@@ -377,7 +377,7 @@ test sevenzip2-2.9 {create complex archive (7z)} -constraints have7zip -setup {
     writeFile [file join $d subdir1 file2.txt] "This is file 2."; lappend l [file join $d subdir1 file2.txt]
     writeFile [file join $d subdir2 file3.txt] "This is file 3."; lappend l [file join $d subdir2 file3.txt]
 } -cleanup {
-    catch {rename $z ""}; unset z
+    catch {rename $z ""}; unset -nocomplain z
     catch {file delete -force $d}; unset d
     catch {file delete -force $f}; unset f
     cd $w; unset w
@@ -408,7 +408,7 @@ test sevenzip2-2.9m {create complex archive (7z)} -constraints {have7zip haveMem
     writeFile [file join $d subdir2 file3.txt] "This is file 3."; lappend l [file join $d subdir2 file3.txt]
 } -cleanup {
     catch {file delete -force $d}; unset d
-    catch {rename $z ""}; unset z
+    catch {rename $z ""}; unset -nocomplain z
     close $c; unset c
     cd $w; unset w
     unset l
@@ -434,7 +434,7 @@ test sevenzip2-3.0 {check attributes for creating archive (7z)} -constraints {ha
     file attributes $e -readonly 1 -hidden 1 -system 1 -archive 1
     file mtime $e [clock scan "2100-01-02 03:04:05"]
 } -cleanup {
-    catch {rename $z ""}; unset z
+    catch {rename $z ""}; unset -nocomplain z
     catch {file delete -force $f}; unset f
     catch {file delete -force $e}; unset e
     cd $w; unset w
@@ -489,7 +489,7 @@ foreach {n p v r} {
         set l [list $i1 $i2]
         set z ""
     } -cleanup {
-        catch {rename $z ""}; unset z
+        catch {rename $z ""}; unset -nocomplain z
         catch {file delete -force $f}; unset f
         catch {file delete -force $i1 $i2}; unset i1 i2
         unset l

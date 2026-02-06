@@ -446,26 +446,34 @@ test sevenzip2-3.0 {check attributes for creating archive (7z)} -constraints {ha
     list $a(size) $a(mtime) $a(attrib)
 } -result {13 4102535045 39}
 
-foreach {n p v r} {
-    0 m lzma LZMA*
-    1 m copy COPY
-    2 x 9 LZMA*
-    3 x 0 COPY
+foreach {n p r} {
+    0 {m lzma} LZMA:*
+    1 {m copy} COPY
+    2 {x 9} LZMA2:*
+    3 {x 0} COPY
+    4 {m lzma x 9} LZMA:*
+    5 {m lzma x 0} LZMA:*
+    6 {m copy x 9} COPY
+    7 {m copy x 0} COPY
+    8 {x 9 m lzma} LZMA:*
+    9 {x 0 m lzma} LZMA:*
+    A {x 9 m copy} COPY
+    B {x 0 m copy} COPY
 } { 
-    test sevenzip2-4.0.$n {create simple archive with string property (7z)} -constraints have7zip -setup {
+    test sevenzip2-4.0.$n "create simple 7z archive with property {$p}" -constraints have7zip -setup {
         set l [list [file join [testsDirectory] files test.txt]]
         set f [file join [temporaryDirectory] sevenzip2.7z]
         set z ""
     } -cleanup {
-        catch {rename $z ""}; unset z
+        catch {rename $z ""}; unset -nocomplain z
         catch {file delete -force $f}; unset f
         unset l
     } -body {
-        sevenzip create -properties [list $p $v] -forcetype 7z $f $l
+        sevenzip create -properties $p -forcetype 7z $f $l
         set z [sevenzip open -forcetype 7z $f]
         string toupper [dict get [lindex [$z list -info] 0] method]
     } -result $r -match glob
-    unset n p v r
+    unset n p r
 }
 
 foreach {n p v r} {

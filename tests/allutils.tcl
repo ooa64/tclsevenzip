@@ -34,6 +34,15 @@ if {[info proc deleteFile] eq ""} {
     }
 }
 
+if {[testConstraint corruptTest]} {
+    if {[info commands memory] eq ""} {
+        puts stderr "WARNING: corruptTest requested but 'memory' command not available"
+    } else {
+        puts stderr "WARNING: corruptTest initialized - memory corruption will be reported"
+        memory init on
+    }
+}
+
 if {[info exists ::tcltest::_leaks]} {
     array set ::tcltest::_leaks {count 0 bytes 0}
 } elseif {[testConstraint leakTest]} {

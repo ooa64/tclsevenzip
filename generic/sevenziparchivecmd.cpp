@@ -567,6 +567,10 @@ int SevenzipArchiveCmd::Extract(Tcl_Obj *source, Tcl_Obj *destination, Tcl_Obj *
                 hr = archive.extract(stream, 
                         password ? sevenzip::fromBytes(Tcl_GetString(password)) : NULL, i);
 
+            if (hr == E_NOINTERFACE) // looks like options are not supported, skip error
+                hr = archive.extract(stream, 
+                        password ? sevenzip::fromBytes(Tcl_GetString(password)) : NULL, i);
+
             if (!usechannel) {
                 // NOTE: detach channel to 1) close it, and 2) enable SetXxxx functions.
                 Tcl_Close(tclInterp, stream.DetachChannel());

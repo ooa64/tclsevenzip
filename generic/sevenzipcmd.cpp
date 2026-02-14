@@ -414,6 +414,8 @@ int SevenzipCmd::CreateArchive(Tcl_Obj *pathnames, Tcl_Obj *destination, Tcl_Obj
     }
     if (hr == S_OK)
         hr = archive.update();
+    if (hr == E_NOINTERFACE) // looks like options are not supported, skip error
+        hr = archive.update();
     if (hr != S_OK)
         return lastError(tclInterp, hr);
     return TCL_OK;

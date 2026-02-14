@@ -7,13 +7,14 @@ The **sevenzip** package provides a Tcl interface to the 7-Zip dynamic library, 
 ## Installation
 
 Before using the package, ensure the 7-Zip dynamic library is accessible:
-- **Windows**: Place `7z.dll` in your PATH
-- **Unix/Linux**: Place `7z.so` in your LD_LIBRARY_PATH
-- **MacOS**: Place `7z.so` in your DYLD_LIBRARY_PATH
+
+- **Windows**: Place `7z.dll` in your `PATH`
+- **Unix/Linux**: Place `7z.so` in your `LD_LIBRARY_PATH`
+- **MacOS**: Place `7z.so` in your `DYLD_LIBRARY_PATH`
 
 ## Loading the Package
 
-```tcl
+```
 package require sevenzip
 ```
 
@@ -26,15 +27,18 @@ This creates the `sevenzip` command with various subcommands.
 Initialize the sevenzip library with an optional path to the 7-Zip dynamic library.
 
 **Syntax:**
-```tcl
+
+```
 sevenzip initialize ?library?
 ```
 
 **Parameters:**
+
 - `library` - (Optional) Full path to 7z.dll (Windows) or 7z.so (Unix/Linux)
 
 **Examples:**
-```tcl
+
+```
 # Auto-detect library from PATH/LD_LIBRARY_PATH/DYLD_LIBRARY_PATH
 sevenzip initialize
 
@@ -52,7 +56,8 @@ Check if the 7-Zip library has been successfully initialized.
 **Returns:** `1` if initialized, `0` otherwise
 
 **Example:**
-```tcl
+
+```
 if {[sevenzip isinitialized]} {
     puts "7-Zip library is ready"
 }
@@ -67,7 +72,8 @@ Get a list of all supported archive file extensions.
 **Returns:** List of extensions (e.g., `7z zip tar rar gz bz2 xz arj cab ...`)
 
 **Example:**
-```tcl
+
+```
 set exts [sevenzip extensions]
 puts "Supported extensions: $exts"
 ```
@@ -77,13 +83,15 @@ puts "Supported extensions: $exts"
 Get detailed information about all supported archive formats.
 
 **Returns:** List of dictionaries, each containing:
+
 - `id` - Numeric format identifier
 - `name` - Format name
 - `updatable` - Whether the format supports updates (0 or 1)
 - `extensions` - List of file extensions for this format
 
 **Example:**
-```tcl
+
+```
 foreach fmt [sevenzip formats] {
     array set f $fmt
     puts "$f(name): id=$f(id), updatable=$f(updatable), extensions=$f(extensions)"
@@ -95,6 +103,7 @@ foreach fmt [sevenzip formats] {
 Get the numeric format ID for a specific file extension.
 
 **Parameters:**
+
 - `extension` - File extension (e.g., "7z", "zip", "tar")
 
 **Returns:** Numeric format ID, or `-1` if not supported
@@ -102,7 +111,8 @@ Get the numeric format ID for a specific file extension.
 **Note:** More than one format can be detected with a given extension, the first one found is returned.
 
 **Example:**
-```tcl
+
+```
 set fmt [sevenzip format 7z]
 if {$fmt >= 0} {
     puts "7z format ID: $fmt"
@@ -114,12 +124,14 @@ if {$fmt >= 0} {
 Check if a format supports creating and updating archives.
 
 **Parameters:**
+
 - `type` - Format ID (integer) or extension (string)
 
 **Returns:** `1` if updatable, `0` otherwise
 
 **Example:**
-```tcl
+
+```
 if {[sevenzip updatable 7z]} {
     puts "Can create 7z archives"
 }
@@ -132,11 +144,13 @@ if {[sevenzip updatable 7z]} {
 Create a new archive from a list of files.
 
 **Syntax:**
-```tcl
+
+```
 sevenzip create ?options? pathOrChannel filesList
 ```
 
 **Options:**
+
 - `-forcetype type` - Archive format (ID or extension)
 - `-properties dict` - Archive properties (compression level, method, etc.)
 - `-password password` - Encrypt archive with password
@@ -144,17 +158,20 @@ sevenzip create ?options? pathOrChannel filesList
 - `-channel` - Treat first argument as channel name
 
 **Parameters:**
+
 - `pathOrChannel` - Output archive path or channel name
 - `filesList` - List of directories and/or files to add to archive
 
 **Notes:**
+
 - The file list must contain only one item when using the `-inputchannel` option.
 - The archive format is determined by the file extension unless `-forcetype type` is specified.
 - Given extension may belong to more than one format, the first format found is used.
 - Using the `-channel` option implies using the `-forcetype type` option.
 
 **Examples:**
-```tcl
+
+```
 # Create simple 7z archive
 sevenzip create output.7z {file1.txt file2.txt}
 
@@ -190,26 +207,31 @@ sevenzip create -properties {m LZMA x 9 s true} output.7z {file1.txt file2.txt}
 Open an existing archive for reading.
 
 **Syntax:**
-```tcl
+
+```
 sevenzip open ?options? pathOrChannel
 ```
 
 **Options:**
+
 - `-detecttype` - Auto-detect archive format from file signature
 - `-forcetype type` - Force specific format (ID or extension)
 - `-password password` - Password for encrypted archives
 - `-channel` - Treat argument as channel name instead of file path
 
 **Parameters:**
+
 - `pathOrChannel` - Path to archive file, or channel name if `-channel` is used
 
 **Returns:** Archive handle command
 
 **Notes**
+
 - Only a single-volume archive can be opened using `-channel`
 
 **Examples:**
-```tcl
+
+```
 # Open archive by file extension
 set arc [sevenzip open test.7z]
 
@@ -237,6 +259,7 @@ Once an archive is opened with `sevenzip open`, it returns a handle command with
 Get archive metadata and properties.
 
 **Returns:** Dictionary with archive information, for example:
+
 - `headerssize` - Size of archive headers
 - `method` - Compression method
 - `solid` - Whether archive is solid (0 or 1)
@@ -244,7 +267,8 @@ Get archive metadata and properties.
 - `characts` - Character attributes (for tar archives)
 
 **Example:**
-```tcl
+
+```
 set arc [sevenzip open test.7z]
 array set info [$arc info]
 puts "Compression method: $info(method)"
@@ -258,7 +282,8 @@ Get the number of items (files and directories) in the archive.
 **Returns:** Integer count
 
 **Example:**
-```tcl
+
+```
 set arc [sevenzip open test.7z]
 puts "Archive contains [$arc count] items"
 ```
@@ -268,11 +293,13 @@ puts "Archive contains [$arc count] items"
 List files in the archive with optional filtering and detailed information.
 
 **Syntax:**
-```tcl
+
+```
 handle list ?options? ?pattern?
 ```
 
 **Options:**
+
 - `-info` - Return detailed information for each item
 - `-nocase` - Case-insensitive pattern matching
 - `-exact` - Exact string match instead of glob pattern
@@ -280,13 +307,16 @@ handle list ?options? ?pattern?
 - `--` - End of options marker
 
 **Parameters:**
+
 - `pattern` - Optional glob pattern or exact name to match
 
 **Returns:**
+
 - Without `-info`: List of item names
 - With `-info`: List of dictionaries with item properties
 
 **Item properties (with -info):** for example
+
 - `name` - Item path/name
 - `size` - Uncompressed size
 - `packedsize` - Compressed size
@@ -299,7 +329,8 @@ handle list ?options? ?pattern?
 - `encrypted` - Is encrypted (0 or 1)
 
 **Examples:**
-```tcl
+
+```
 set arc [sevenzip open test.7z]
 
 # List all items
@@ -329,20 +360,24 @@ set file [$arc list -exact path/to/file.txt]
 Extract an item from the archive.
 
 **Syntax:**
-```tcl
+
+```
 handle extract ?options? pathOrChannel itemName
 ```
 
 **Options:**
+
 - `-password password` - Password for encrypted item
 - `-channel` - Write to channel instead of file
 
 **Parameters:**
+
 - `pathOrChannel` - Output file path or channel name
 - `itemName` - Name of item to extract (full path within archive)
 
 **Examples:**
-```tcl
+
+```
 set arc [sevenzip open test.7z]
 
 # Extract to file
@@ -371,7 +406,8 @@ close $mem
 Close the archive and release resources. After calling this, the handle command is deleted.
 
 **Example:**
-```tcl
+
+```
 set arc [sevenzip open test.7z]
 # ... use archive ...
 $arc close
@@ -381,7 +417,7 @@ $arc close
 
 ### Example 1: List Archive Contents
 
-```tcl
+```
 package require sevenzip
 sevenzip initialize
 
@@ -400,7 +436,7 @@ $arc close
 
 ### Example 2: Extract All Files
 
-```tcl
+```
 package require sevenzip
 sevenzip initialize
 
@@ -419,7 +455,7 @@ $arc close
 
 ### Example 3: Create Archive from Directory
 
-```tcl
+```
 package require sevenzip
 sevenzip initialize
 
@@ -442,7 +478,7 @@ puts "Created archive with [llength $files] files"
 
 ### Example 4: Password-Protected Archive
 
-```tcl
+```
 package require sevenzip
 sevenzip initialize
 
@@ -458,7 +494,7 @@ $arc close
 
 ### Example 5: Working with Channels
 
-```tcl
+```
 package require sevenzip
 package require tcl::chan::memchan
 sevenzip initialize
@@ -479,7 +515,7 @@ close $memChan
 
 The package includes `vfs::sevenzip` for mounting archives as virtual filesystems:
 
-```tcl
+```
 package require vfs::sevenzip
 
 # Mount archive as filesystem
@@ -498,7 +534,7 @@ vfs::sevenzip::Unmount archive.7z /mnt/archive
 
 All commands may throw errors. Use `catch` or `try` to handle them:
 
-```tcl
+```
 if {[catch {
     set arc [sevenzip open missing.7z]
 } err]} {
@@ -526,6 +562,7 @@ try {
 The library supports numerous formats including:
 
 **Read and Write:**
+
 - 7z (7-Zip)
 - zip (ZIP)
 - tar (TAR)
@@ -535,6 +572,7 @@ The library supports numerous formats including:
 - gzip (GZIP)
 
 **Read Only:**
+
 - rar (RAR)
 - arj (ARJ)
 - cab (Cabinet)
